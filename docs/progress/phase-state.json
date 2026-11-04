@@ -1,0 +1,158 @@
+{
+  "schema_version": "1.0.0",
+  "current_phase": 0,
+  "status": "blocked",
+  "input_commit": "9f35e64",
+  "integration_commit": "4976e6a",
+  "worker_runs": {
+    "A": {
+      "status": "not_run",
+      "branch": null,
+      "commit": null
+    },
+    "B": {
+      "status": "not_run",
+      "branch": null,
+      "commit": null
+    },
+    "C": {
+      "status": "not_run",
+      "branch": null,
+      "commit": null
+    },
+    "D": {
+      "status": "not_run",
+      "branch": null,
+      "commit": null
+    }
+  },
+  "gates": [
+    {
+      "id": "P0-toolchain-recorded",
+      "phase": 0,
+      "required": true,
+      "status": "blocked",
+      "command_or_procedure": "Inspect host tools; record Unity/SDK/simulator/Android/JDK versions",
+      "environment": "MacBook Air Mac17,3, Apple M5 (arm64), 24 GB, macOS 26.6 (25G72)",
+      "evidence_path": "docs/environment/m0-environment.md",
+      "evidence_sha256": null,
+      "notes": "Host, Git, Python, uv and PostgreSQL recorded. Unity Hub/Editor, Android modules, JDK, Meta XR Simulator are not installed, so the XR toolchain cannot be recorded."
+    },
+    {
+      "id": "P0-unity-imports-compiles",
+      "phase": 0,
+      "required": true,
+      "status": "blocked",
+      "command_or_procedure": "Create app-unity/ with Unity 6000.3 LTS + URP, OpenXR, Meta XR SDK 207.0; open and compile",
+      "environment": "MacBook Air Mac17,3, Apple M5 (arm64), 24 GB, macOS 26.6 (25G72)",
+      "evidence_path": null,
+      "evidence_sha256": null,
+      "notes": "No Unity Editor installed; requires Unity account sign-in/licence (human action). No project files fabricated."
+    },
+    {
+      "id": "P0-simulator-hand-sample",
+      "phase": 0,
+      "required": true,
+      "status": "blocked",
+      "command_or_procedure": "Run Interaction SDK hand sample in standalone Meta XR Simulator (macOS Apple Silicon build)",
+      "environment": "MacBook Air Mac17,3, Apple M5 (arm64), 24 GB, macOS 26.6 (25G72)",
+      "evidence_path": null,
+      "evidence_sha256": null,
+      "notes": "Depends on Unity project and simulator installation."
+    },
+    {
+      "id": "P0-android-apk",
+      "phase": 0,
+      "required": true,
+      "status": "blocked",
+      "command_or_procedure": "Tryscape.Editor.BuildCli.BuildAndroid -> ARM64 IL2CPP development APK + manifest",
+      "environment": "MacBook Air Mac17,3, Apple M5 (arm64), 24 GB, macOS 26.6 (25G72)",
+      "evidence_path": null,
+      "evidence_sha256": null,
+      "notes": "Depends on Unity Android Build Support (OpenJDK, SDK/NDK) and the Unity project."
+    },
+    {
+      "id": "P0-contract-checks",
+      "phase": 0,
+      "required": true,
+      "status": "pass",
+      "command_or_procedure": "uv run --locked scripts/check_contracts.py (exit 0, 141 passed)",
+      "environment": "MacBook Air Mac17,3, Apple M5 (arm64), 24 GB, macOS 26.6 (25G72); Python 3.12/uv 0.7.22",
+      "evidence_path": "artifacts/phase-0/check_contracts.log",
+      "evidence_sha256": "e9e3d7d0a578b17b0b3e379150159c452ed751f8018e86a2df0e7e9e15479d23",
+      "notes": "Schema validity, strict JSON, semantic fixture codes and test-only reference evaluator vs D06 expectations. Five deliberate expectation mutations were each detected. C# consumption pending M1."
+    },
+    {
+      "id": "P0-clean-checkout-repeat",
+      "phase": 0,
+      "required": true,
+      "status": "blocked",
+      "command_or_procedure": "Second contributor clones and repeats setup/build",
+      "environment": "MacBook Air Mac17,3, Apple M5 (arm64), 24 GB, macOS 26.6 (25G72)",
+      "evidence_path": null,
+      "evidence_sha256": null,
+      "notes": "Fresh clone of 4976e6a on the same machine reproduced contracts + backend checks (exit 0). Unity build half and second-person repeat not possible yet."
+    },
+    {
+      "id": "P0-worker-isolation",
+      "phase": 0,
+      "required": true,
+      "status": "not_run",
+      "command_or_procedure": "Create .claude/agents definitions; verify worktree isolation before concurrent writes",
+      "environment": "Claude Code session",
+      "evidence_path": null,
+      "evidence_sha256": null,
+      "notes": "This session executed Phase 0 sequentially as one agent. Agent definitions not yet created; isolation unverified."
+    },
+    {
+      "id": "P0-backend-baseline",
+      "phase": 0,
+      "required": true,
+      "status": "pass",
+      "command_or_procedure": "services/api: uv sync --frozen; ruff check; ruff format --check; mypy src; pytest -q (all exit 0, 78 passed); live uvicorn smoke",
+      "environment": "MacBook Air Mac17,3, Apple M5 (arm64), 24 GB, macOS 26.6 (25G72); PostgreSQL 18.0 (Homebrew), Python 3.12.8",
+      "evidence_path": "artifacts/phase-0/api-checks.log",
+      "evidence_sha256": "c5881b560615241cb907e599bc14df1366498a5f7e284de59473fa8a3a7a91df",
+      "notes": "Baseline only: health, anonymous sessions, error envelope, body limits, R0 migration. Job routes, worker, idempotency, consent and rate limits are not implemented."
+    },
+    {
+      "id": "P0-model-access-deployment",
+      "phase": 0,
+      "required": true,
+      "status": "blocked",
+      "command_or_procedure": "Select ASR + intent model/provider within approved budget; verify judge-reachable HTTPS deployment",
+      "environment": "n/a",
+      "evidence_path": null,
+      "evidence_sha256": null,
+      "notes": "Approved spending is zero and no provider/host is selected. Needs owner decision on provider, budget cap and hosting account."
+    }
+  ],
+  "blockers": [
+    {
+      "id": "B-unity-install",
+      "gates": [
+        "P0-toolchain-recorded",
+        "P0-unity-imports-compiles",
+        "P0-simulator-hand-sample",
+        "P0-android-apk"
+      ],
+      "human_action": "Install Unity Hub, sign in, activate a Unity licence, install the latest Unity 6000.3 LTS editor with Android Build Support (OpenJDK + Android SDK & NDK Tools); install Meta XR Simulator for macOS."
+    },
+    {
+      "id": "B-provider-budget",
+      "gates": [
+        "P0-model-access-deployment"
+      ],
+      "human_action": "Choose ASR/intent provider(s) and hosting, and approve a spending cap (or confirm a zero-cost path) for the judge-facing backend."
+    },
+    {
+      "id": "B-second-contributor",
+      "gates": [
+        "P0-clean-checkout-repeat"
+      ],
+      "human_action": "A second team member clones the repo and repeats setup/build after Unity work lands."
+    }
+  ],
+  "completed_phases": [],
+  "next_action": "Resolve B-unity-install, then create app-unity/ (A). Meanwhile start M1 pure-core contracts consumption (B) outside Unity."
+}

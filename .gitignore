@@ -69,4 +69,3 @@ services/api/models/
 /recordings/
 services/api/var/
 artifacts/
-!artifacts/.gitkeep

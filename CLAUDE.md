@@ -6,7 +6,7 @@ Version 2.1 · 4 November 2026
 
 Tryscape turns a described situation into an interactive spatial rehearsal: understand, construct, watch, intervene with hands, replay, compare and prepare. Voice creates/configures the initial environment through the required Python AI backend. Hands operate everything afterward; hands also provide a complete alternative creation path.
 
-Read [docs/demo-scope.md](docs/demo-scope.md) for the current experience and acceptance cases. Read [docs/technical-spec.md](docs/technical-spec.md) for architecture, contracts, algorithms and release gates. Load relevant sections for each task; do not import the entire technical spec into every prompt unnecessarily.
+Read [docs/demo-scope.md](docs/demo-scope.md) for the current experience and acceptance cases. Read [docs/technical-spec.md](docs/technical-spec.md) for architecture, contracts, algorithms and release gates. [phases.md](phases.md) sets execution sequence and ownership; current state is in [docs/progress.md](docs/progress.md) and `docs/progress/phase-state.json`. Load relevant sections for each task; do not import the entire technical spec into every prompt unnecessarily.
 
 This package contains documentation only. Unity projects, scripts, services, tests and command entry points described below are **to be implemented**. Never report them as existing or passing without inspecting the repository and executing the relevant checks.
 

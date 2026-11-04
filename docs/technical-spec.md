@@ -777,6 +777,8 @@ Security review of client/service/native dependencies; consent/privacy notices m
 | D06 | Required backend creation; local-first rehearsal/projects. | Model-assisted creation uses FastAPI; existing rehearsal stays usable offline. Accounts/cloud project sync remain R1. |
 | D07 | Backend ASR and intent-model deployment selected at M0. | Verify exact models, budgets and service reachability; no laptop dependency or silent local-parser substitution. |
 | D08 | Exact toolchain pinned after M0, not fabricated here. | Published compatibility is necessary but not actual integration evidence. |
+| D09 | 2026-11-05: Unity line is 6000.3 LTS (latest patch at install), not 6000.0. | Unity 6.0 LTS support ended October 2026; 6.3 LTS is supported to December 2027 and meets Meta 207.0's 6000.0.66f2 minimum. Exact patch is still pinned only after the M0 build (D08). |
+| D10 | 2026-11-05: First v1 contract extraction in `contracts/v1/`, with clarifications listed in its README (UUID case, assumption sources, `validation_errors`, violation-fraction and tie-break semantics, snapping as a command rule). | Fills S06/S08/S09 gaps without changing product meaning; revisit through this register if wrong. |
 
 Before replacing a decision, record author/date, changed behavior, affected contracts, fixture changes, migration needs, measured reason and release impact. A different demo is a product decision, not permission for Claude to silently rebrand or rewrite the platform.
 
