@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.tryscape.invalid/v1/evaluation_result.schema.json",
+  "title": "EvaluationResult v1.0.0",
+  "description": "Run envelope plus deterministic evidence (technical-spec S09). run_id and created_at are envelope-only and excluded from the evidence hash.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schema_version", "run_id", "scene_id", "scene_revision", "scene_hash", "route_id", "catalog_version",
+    "evaluator_version", "outcome", "route_length_mm", "first_violation", "assumptions", "validation_errors", "created_at"
+  ],
+  "properties": {
+    "schema_version": {"$ref": "common.schema.json#/$defs/schema_version_1_0_0"},
+    "run_id": {"$ref": "common.schema.json#/$defs/uuid"},
+    "scene_id": {"$ref": "common.schema.json#/$defs/uuid"},
+    "scene_revision": {"type": "integer", "minimum": 0, "maximum": 2147483647},
+    "scene_hash": {"oneOf": [{"type": "null"}, {"$ref": "common.schema.json#/$defs/sha256_hex"}]},
+    "route_id": {"$ref": "common.schema.json#/$defs/slug"},
+    "catalog_version": {"$ref": "common.schema.json#/$defs/semver"},
+    "evaluator_version": {"$ref": "common.schema.json#/$defs/semver"},
+    "outcome": {"enum": ["clear_in_model", "blocked_in_model", "invalid_input", "unsupported"]},
+    "route_length_mm": {"oneOf": [{"type": "null"}, {"type": "integer", "minimum": 0, "maximum": 200000}]},
+    "first_violation": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/violation"}]},
+    "assumptions": {"type": "array", "maxItems": 16, "items": {"$ref": "common.schema.json#/$defs/assumption"}},
+    "validation_errors": {
+      "description": "Populated only for invalid_input; references the rejected input instead of a fabricated scene hash.",
+      "type": "array",
+      "maxItems": 32,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "code"],
+        "properties": {
+          "path": {"type": "string", "maxLength": 128},
+          "code": {"$ref": "common.schema.json#/$defs/slug"}
+        }
+      }
+    },
+    "created_at": {"$ref": "common.schema.json#/$defs/utc_timestamp"}
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"outcome": {"const": "blocked_in_model"}}},
+      "then": {"properties": {"first_violation": {"type": "object"}, "scene_hash": {"type": "string"}, "validation_errors": {"maxItems": 0}}}
+    },
+    {
+      "if": {"properties": {"outcome": {"const": "clear_in_model"}}},
+      "then": {"properties": {"first_violation": {"type": "null"}, "scene_hash": {"type": "string"}, "route_length_mm": {"type": "integer"}, "validation_errors": {"maxItems": 0}}}
+    },
+    {
+      "if": {"properties": {"outcome": {"const": "invalid_input"}}},
+      "then": {"properties": {"scene_hash": {"type": "null"}, "first_violation": {"type": "null"}, "validation_errors": {"minItems": 1}}}
+    }
+  ],
+  "$defs": {
+    "violation": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["rule_code", "entity_ids", "segment_index", "entry_fraction", "contact_center", "model_margin_mm", "message_key"],
+      "properties": {
+        "rule_code": {"enum": ["blocker_intersection", "room_boundary", "invalid_start", "unsupported_orientation", "invalid_route"]},
+        "entity_ids": {"type": "array", "maxItems": 24, "uniqueItems": true, "items": {"$ref": "common.schema.json#/$defs/uuid"}},
+        "segment_index": {"type": "integer", "minimum": 0, "maximum": 10},
+        "entry_fraction": {"$ref": "common.schema.json#/$defs/rational"},
+        "contact_center": {
+          "description": "Payload centre at first violation, model-space mm as exact rationals.",
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["x_mm", "z_mm"],
+          "properties": {
+            "x_mm": {"$ref": "common.schema.json#/$defs/rational"},
+            "z_mm": {"$ref": "common.schema.json#/$defs/rational"}
+          }
+        },
+        "model_margin_mm": {"type": "integer", "minimum": 0, "maximum": 500},
+        "message_key": {"$ref": "common.schema.json#/$defs/slug"}
+      }
+    }
+  }
+}

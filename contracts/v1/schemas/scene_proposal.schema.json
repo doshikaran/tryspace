@@ -1,0 +1,67 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.tryscape.invalid/v1/scene_proposal.schema.json",
+  "title": "SceneProposal v1.0.0",
+  "description": "Backend scene proposal (technical-spec S10.3). A proposal never becomes authoritative until Unity revalidates it and the user confirms with hands.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "proposal_id", "status", "transcript", "intent", "scene", "questions", "assumptions", "provider_metadata"],
+  "properties": {
+    "schema_version": {"$ref": "common.schema.json#/$defs/schema_version_1_0_0"},
+    "proposal_id": {"$ref": "common.schema.json#/$defs/uuid"},
+    "status": {"enum": ["ready", "needs_clarification", "unsupported"]},
+    "transcript": {"type": "string", "maxLength": 2000},
+    "intent": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/intent"}]},
+    "scene": {"oneOf": [{"type": "null"}, {"$ref": "scene_spec.schema.json"}]},
+    "questions": {"type": "array", "maxItems": 3, "items": {"$ref": "#/$defs/question"}},
+    "assumptions": {"type": "array", "maxItems": 16, "items": {"$ref": "common.schema.json#/$defs/assumption"}},
+    "provider_metadata": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["provider_id", "version"],
+      "properties": {
+        "provider_id": {"$ref": "common.schema.json#/$defs/slug"},
+        "version": {"$ref": "common.schema.json#/$defs/semver"}
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {"properties": {"status": {"const": "ready"}}},
+      "then": {"properties": {"intent": {"type": "object"}, "scene": {"type": "object"}, "questions": {"maxItems": 0}}}
+    },
+    {
+      "if": {"properties": {"status": {"enum": ["needs_clarification", "unsupported"]}}},
+      "then": {"properties": {"scene": {"type": "null"}}}
+    },
+    {
+      "if": {"properties": {"status": {"const": "needs_clarification"}}},
+      "then": {"properties": {"questions": {"minItems": 1}}}
+    }
+  ],
+  "$defs": {
+    "intent": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["scenario_pack_id", "room_width_mm", "room_depth_mm", "payload_catalog_id", "obstruction_state", "preferred_route_id"],
+      "properties": {
+        "scenario_pack_id": {"enum": ["moving_day"]},
+        "room_width_mm": {"type": "integer", "minimum": 5000, "maximum": 8000},
+        "room_depth_mm": {"type": "integer", "minimum": 5000, "maximum": 8000},
+        "payload_catalog_id": {"$ref": "common.schema.json#/$defs/slug"},
+        "obstruction_state": {"enum": ["center", "parked_south"]},
+        "preferred_route_id": {"$ref": "common.schema.json#/$defs/slug"}
+      }
+    },
+    "question": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["field", "prompt", "choices"],
+      "properties": {
+        "field": {"$ref": "common.schema.json#/$defs/slug"},
+        "prompt": {"type": "string", "minLength": 1, "maxLength": 160, "pattern": "^[^\\u0000-\\u001f\\u007f]+$"},
+        "choices": {"type": "array", "minItems": 2, "maxItems": 4, "items": {"$ref": "common.schema.json#/$defs/label"}}
+      }
+    }
+  }
+}

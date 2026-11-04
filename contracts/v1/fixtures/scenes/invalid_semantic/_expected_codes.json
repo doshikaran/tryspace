@@ -1,0 +1,58 @@
+[
+  {
+    "file": "diagonal_route_segment.json",
+    "expected_code": "route_segment_not_axis_aligned"
+  },
+  {
+    "file": "zero_length_segment.json",
+    "expected_code": "route_segment_zero_length"
+  },
+  {
+    "file": "route_start_not_payload_pose.json",
+    "expected_code": "route_start_mismatch"
+  },
+  {
+    "file": "routes_different_destinations.json",
+    "expected_code": "route_destination_mismatch"
+  },
+  {
+    "file": "unknown_active_route.json",
+    "expected_code": "unknown_active_route"
+  },
+  {
+    "file": "duplicate_entity_ids.json",
+    "expected_code": "duplicate_entity_id"
+  },
+  {
+    "file": "duplicate_route_ids.json",
+    "expected_code": "duplicate_route_id"
+  },
+  {
+    "file": "blocker_overlaps_payload_start.json",
+    "expected_code": "blocker_overlaps_payload"
+  },
+  {
+    "file": "blocker_outside_room.json",
+    "expected_code": "entity_outside_room"
+  },
+  {
+    "file": "unknown_catalog_id.json",
+    "expected_code": "unknown_catalog_id"
+  },
+  {
+    "file": "role_not_allowed_by_catalog.json",
+    "expected_code": "role_not_allowed"
+  },
+  {
+    "file": "route_payload_not_payload_role.json",
+    "expected_code": "route_payload_invalid"
+  },
+  {
+    "file": "user_measured_without_sources.json",
+    "expected_code": "measurement_sources_missing"
+  },
+  {
+    "file": "payload_start_outside_margin.json",
+    "expected_code": "payload_outside_room_margin"
+  }
+]

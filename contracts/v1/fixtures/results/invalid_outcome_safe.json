@@ -1,0 +1,51 @@
+{
+  "schema_version": "1.0.0",
+  "run_id": "80000000-0000-4000-8000-000000000001",
+  "scene_id": "10000000-0000-4000-8000-000000000001",
+  "scene_revision": 0,
+  "scene_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+  "route_id": "direct",
+  "catalog_version": "1.0.0",
+  "evaluator_version": "1.0.0",
+  "outcome": "safe",
+  "route_length_mm": 4300,
+  "first_violation": {
+    "rule_code": "blocker_intersection",
+    "entity_ids": [
+      "30000000-0000-4000-8000-000000000002"
+    ],
+    "segment_index": 0,
+    "entry_fraction": {
+      "numerator": 11,
+      "denominator": 120
+    },
+    "contact_center": {
+      "x_mm": {
+        "numerator": 1275,
+        "denominator": 1
+      },
+      "z_mm": {
+        "numerator": 2500,
+        "denominator": 1
+      }
+    },
+    "model_margin_mm": 25,
+    "message_key": "blocker_obstructs_route"
+  },
+  "assumptions": [
+    {
+      "code": "illustrative_layout",
+      "text": "Prepared example; dimensions are not measurements of your home.",
+      "source": "template",
+      "requires_confirmation": false
+    },
+    {
+      "code": "upright_fixed_orientation",
+      "text": "The sofa remains upright at a fixed orientation; lifting and turning are not assessed.",
+      "source": "scenario_model",
+      "requires_confirmation": false
+    }
+  ],
+  "validation_errors": [],
+  "created_at": "2026-11-04T10:00:00Z"
+}

@@ -1,0 +1,87 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.tryscape.invalid/v1/command.schema.json",
+  "title": "Scene command envelope and result v1",
+  "description": "Command envelope and coordinator response (technical-spec S07.1). replace_scene carries a validated SceneSpec and is only issued by the staged creation transaction.",
+  "oneOf": [
+    {"$ref": "#/$defs/command_envelope"},
+    {"$ref": "#/$defs/command_result"}
+  ],
+  "$defs": {
+    "empty_payload": {"type": "object", "additionalProperties": false, "maxProperties": 0},
+    "command_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["command_id", "project_id", "expected_revision", "type", "payload"],
+      "properties": {
+        "command_id": {"$ref": "common.schema.json#/$defs/uuid"},
+        "project_id": {"$ref": "common.schema.json#/$defs/uuid"},
+        "expected_revision": {"type": "integer", "minimum": 0, "maximum": 2147483647},
+        "type": {"enum": ["move_entity", "rotate_entity", "select_route", "undo", "redo", "reset_scene", "replace_scene"]},
+        "payload": {"type": "object"},
+        "issued_at": {"$ref": "common.schema.json#/$defs/utc_timestamp"}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"type": {"const": "move_entity"}}},
+          "then": {"properties": {"payload": {
+            "type": "object", "additionalProperties": false, "required": ["entity_id", "x_mm", "z_mm"],
+            "properties": {
+              "entity_id": {"$ref": "common.schema.json#/$defs/uuid"},
+              "x_mm": {"$ref": "common.schema.json#/$defs/coordinate_mm"},
+              "z_mm": {"$ref": "common.schema.json#/$defs/coordinate_mm"}
+            }}}}
+        },
+        {
+          "if": {"properties": {"type": {"const": "rotate_entity"}}},
+          "then": {"properties": {"payload": {
+            "type": "object", "additionalProperties": false, "required": ["entity_id", "yaw_deg"],
+            "properties": {
+              "entity_id": {"$ref": "common.schema.json#/$defs/uuid"},
+              "yaw_deg": {"enum": [0, 90, 180, 270]}
+            }}}}
+        },
+        {
+          "if": {"properties": {"type": {"const": "select_route"}}},
+          "then": {"properties": {"payload": {
+            "type": "object", "additionalProperties": false, "required": ["route_id"],
+            "properties": {"route_id": {"$ref": "common.schema.json#/$defs/slug"}}}}}
+        },
+        {
+          "if": {"properties": {"type": {"enum": ["undo", "redo", "reset_scene"]}}},
+          "then": {"properties": {"payload": {"$ref": "#/$defs/empty_payload"}}}
+        },
+        {
+          "if": {"properties": {"type": {"const": "replace_scene"}}},
+          "then": {"properties": {"payload": {
+            "type": "object", "additionalProperties": false, "required": ["scene"],
+            "properties": {"scene": {"$ref": "scene_spec.schema.json"}}}}}
+        }
+      ]
+    },
+    "command_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["command_id", "accepted", "revision", "error_code", "changed_entity_ids"],
+      "properties": {
+        "command_id": {"$ref": "common.schema.json#/$defs/uuid"},
+        "accepted": {"type": "boolean"},
+        "revision": {"description": "Revision after the command; unchanged when rejected.", "type": "integer", "minimum": 0, "maximum": 2147483647},
+        "error_code": {
+          "oneOf": [
+            {"type": "null"},
+            {"enum": [
+              "revision_conflict", "unknown_entity", "entity_not_editable", "out_of_room",
+              "overlaps_payload_start", "overlaps_blocker", "unsupported_yaw", "not_snapped",
+              "unknown_route", "nothing_to_undo", "nothing_to_redo", "invalid_scene", "unsupported_command"
+            ]}
+          ]
+        },
+        "changed_entity_ids": {"type": "array", "maxItems": 24, "uniqueItems": true, "items": {"$ref": "common.schema.json#/$defs/uuid"}}
+      },
+      "if": {"properties": {"accepted": {"const": true}}},
+      "then": {"properties": {"error_code": {"type": "null"}}},
+      "else": {"properties": {"error_code": {"type": "string"}, "changed_entity_ids": {"maxItems": 0}}}
+    }
+  }
+}

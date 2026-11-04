@@ -1,0 +1,123 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.tryscape.invalid/v1/api.schema.json",
+  "title": "Tryscape creation API v1 wire shapes",
+  "description": "Required R0 creation API bodies (technical-spec S13). R1 project/sync shapes are intentionally absent.",
+  "$defs": {
+    "error_envelope": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["error"],
+      "properties": {
+        "error": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["code", "message", "request_id", "retryable", "details"],
+          "properties": {
+            "code": {"enum": [
+              "invalid_request", "unauthenticated", "not_found", "idempotency_conflict", "revision_conflict",
+              "payload_too_large", "unsupported_media", "validation_failed", "rate_limited",
+              "provider_unavailable", "deadline_exceeded", "internal_error"
+            ]},
+            "message": {"type": "string", "maxLength": 240},
+            "request_id": {"$ref": "common.schema.json#/$defs/uuid"},
+            "retryable": {"type": "boolean"},
+            "details": {
+              "type": "array",
+              "maxItems": 32,
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["field", "code"],
+                "properties": {
+                  "field": {"type": "string", "maxLength": 128},
+                  "code": {"$ref": "common.schema.json#/$defs/slug"}
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "anonymous_session_request": {"type": "object", "additionalProperties": false, "maxProperties": 0},
+    "anonymous_session_response": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["session_token", "expires_at"],
+      "properties": {
+        "session_token": {"description": "Opaque bearer token; returned once, kept only in client memory.", "type": "string", "pattern": "^[A-Za-z0-9_-]{43}$"},
+        "expires_at": {"$ref": "common.schema.json#/$defs/utc_timestamp"}
+      }
+    },
+    "scene_proposal_job_request": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "transcript", "locale", "scenario_pack_id", "catalog_version"],
+      "properties": {
+        "schema_version": {"$ref": "common.schema.json#/$defs/schema_version_1_0_0"},
+        "transcript": {"type": "string", "minLength": 1, "maxLength": 2000},
+        "locale": {"enum": ["en"]},
+        "scenario_pack_id": {"enum": ["moving_day"]},
+        "catalog_version": {"$ref": "common.schema.json#/$defs/semver"}
+      }
+    },
+    "job_status": {"enum": ["queued", "running", "succeeded", "failed", "cancel_requested", "cancelled", "expired"]},
+    "job_receipt": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["job_id", "status", "poll_after_ms"],
+      "properties": {
+        "job_id": {"$ref": "common.schema.json#/$defs/uuid"},
+        "status": {"$ref": "#/$defs/job_status"},
+        "poll_after_ms": {"type": "integer", "minimum": 100, "maximum": 10000}
+      }
+    },
+    "transcription_result": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["text", "locale", "provider_id"],
+      "properties": {
+        "text": {"type": "string", "maxLength": 2000},
+        "locale": {"enum": ["en"]},
+        "provider_id": {"$ref": "common.schema.json#/$defs/slug"}
+      }
+    },
+    "job_error": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "retryable"],
+      "properties": {
+        "code": {"$ref": "common.schema.json#/$defs/slug"},
+        "retryable": {"type": "boolean"}
+      }
+    },
+    "job": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["job_id", "status", "kind", "result_schema_version", "result", "error"],
+      "properties": {
+        "job_id": {"$ref": "common.schema.json#/$defs/uuid"},
+        "status": {"$ref": "#/$defs/job_status"},
+        "kind": {"enum": ["scene_proposal", "transcription"]},
+        "result_schema_version": {"oneOf": [{"type": "null"}, {"$ref": "common.schema.json#/$defs/schema_version_1_0_0"}]},
+        "result": {"oneOf": [{"type": "null"}, {"type": "object"}]},
+        "error": {"oneOf": [{"type": "null"}, {"$ref": "#/$defs/job_error"}]}
+      },
+      "allOf": [
+        {
+          "if": {"properties": {"status": {"const": "succeeded"}}},
+          "then": {"properties": {"result": {"type": "object"}, "result_schema_version": {"type": "string"}, "error": {"type": "null"}}},
+          "else": {"properties": {"result": {"type": "null"}}}
+        },
+        {
+          "if": {"required": ["status", "kind", "result"], "properties": {"status": {"const": "succeeded"}, "kind": {"const": "scene_proposal"}}},
+          "then": {"properties": {"result": {"$ref": "scene_proposal.schema.json"}}}
+        },
+        {
+          "if": {"required": ["status", "kind", "result"], "properties": {"status": {"const": "succeeded"}, "kind": {"const": "transcription"}}},
+          "then": {"properties": {"result": {"$ref": "#/$defs/transcription_result"}}}
+        }
+      ]
+    }
+  }
+}

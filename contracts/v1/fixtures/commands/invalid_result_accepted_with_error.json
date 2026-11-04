@@ -1,0 +1,9 @@
+{
+  "command_id": "60000000-0000-4000-8000-000000000001",
+  "accepted": true,
+  "revision": 1,
+  "error_code": "out_of_room",
+  "changed_entity_ids": [
+    "30000000-0000-4000-8000-000000000002"
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0.0",
+  "proposal_id": "50000000-0000-4000-8000-000000000002",
+  "status": "ready",
+  "transcript": "Prepare a six by five metre living room for a sofa delivery. There is a console table in the way.",
+  "intent": {
+    "scenario_pack_id": "moving_day",
+    "room_width_mm": 6000,
+    "room_depth_mm": 5000,
+    "payload_catalog_id": "sofa_standard",
+    "obstruction_state": "center",
+    "preferred_route_id": "direct"
+  },
+  "scene": null,
+  "questions": [],
+  "assumptions": [
+    {
+      "code": "room_dimensions_from_request",
+      "text": "Room size taken from your request; not a confirmed measurement.",
+      "source": "user_request",
+      "requires_confirmation": true
+    }
+  ],
+  "provider_metadata": {
+    "provider_id": "backend_orchestrator",
+    "version": "1.0.0"
+  }
+}

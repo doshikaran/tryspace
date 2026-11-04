@@ -1,0 +1,9 @@
+{
+  "error": {
+    "code": "rate_limited",
+    "message": "Too many creation requests. Try again shortly or create with hands.",
+    "request_id": "70000000-0000-4000-8000-000000000001",
+    "retryable": true,
+    "details": []
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.tryscape.invalid/v1/catalog_manifest.schema.json",
+  "title": "Catalog manifest v1.0.0",
+  "description": "Scenario-pack asset catalog (technical-spec S06.5). Dimensions and collision participation come only from here; proposals cannot override them.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema_version", "scenario_pack_id", "scenario_pack_version", "catalog_version", "entries"],
+  "properties": {
+    "schema_version": {"$ref": "common.schema.json#/$defs/schema_version_1_0_0"},
+    "scenario_pack_id": {"enum": ["moving_day"]},
+    "scenario_pack_version": {"$ref": "common.schema.json#/$defs/semver"},
+    "catalog_version": {"$ref": "common.schema.json#/$defs/semver"},
+    "entries": {
+      "type": "array",
+      "minItems": 1,
+      "maxItems": 64,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "catalog_id", "label", "footprint_width_mm", "footprint_depth_mm", "rendered_height_mm",
+          "collision_participation", "allowed_roles", "prefab_key", "editable_pose_constraints", "asset_license_id"
+        ],
+        "properties": {
+          "catalog_id": {"$ref": "common.schema.json#/$defs/slug"},
+          "label": {"$ref": "common.schema.json#/$defs/label"},
+          "footprint_width_mm": {"description": "Extent along x at yaw 0.", "type": "integer", "minimum": 50, "maximum": 4000},
+          "footprint_depth_mm": {"description": "Extent along z at yaw 0.", "type": "integer", "minimum": 50, "maximum": 4000},
+          "rendered_height_mm": {"type": "integer", "minimum": 1, "maximum": 3000},
+          "collision_participation": {"enum": ["floor_obstruction", "payload", "none"]},
+          "allowed_roles": {"type": "array", "minItems": 1, "maxItems": 3, "uniqueItems": true, "items": {"enum": ["payload", "blocker", "decoration"]}},
+          "prefab_key": {"description": "Local, client-resolved prefab key. Never a path or URL.", "$ref": "common.schema.json#/$defs/slug"},
+          "editable_pose_constraints": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["snap_mm", "allowed_yaw_deg"],
+            "properties": {
+              "snap_mm": {"type": "integer", "minimum": 1, "maximum": 1000},
+              "allowed_yaw_deg": {"type": "array", "minItems": 1, "maxItems": 4, "uniqueItems": true, "items": {"enum": [0, 90, 180, 270]}}
+            }
+          },
+          "asset_license_id": {"$ref": "common.schema.json#/$defs/slug"}
+        }
+      }
+    }
+  }
+}

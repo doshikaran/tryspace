@@ -1,0 +1,209 @@
+{
+  "description": "Independently derived expected outcomes for fixtures F01-F04 (demo-scope D06.1-D06.4). Values are transcribed from the scope document, not produced by any evaluator implementation. Model margin 25 mm.",
+  "model_margin_mm": 25,
+  "cases": [
+    {
+      "id": "F01",
+      "scene": "scenes/valid/f01_direct_blocked.json",
+      "route_id": "direct",
+      "outcome": "blocked_in_model",
+      "route_length_mm": 4300,
+      "first_violation": {
+        "rule_code": "blocker_intersection",
+        "entity_ids": [
+          "30000000-0000-4000-8000-000000000002"
+        ],
+        "segment_index": 0,
+        "entry_fraction": {
+          "numerator": 11,
+          "denominator": 120
+        },
+        "contact_center": {
+          "x_mm": {
+            "numerator": 1275,
+            "denominator": 1
+          },
+          "z_mm": {
+            "numerator": 2500,
+            "denominator": 1
+          }
+        }
+      },
+      "derivation": "Expanded console x bounds 2500-300-900-25=1275 .. 3725, z 1575..3425; entry (1275-1000)/3000 = 11/120.",
+      "source": "demo-scope D06.1"
+    },
+    {
+      "id": "F01_north",
+      "scene": "scenes/valid/f01_direct_blocked.json",
+      "route_id": "north_detour",
+      "outcome": "clear_in_model",
+      "route_length_mm": 4700,
+      "first_violation": null,
+      "source": "demo-scope D06.3 (same layout, alternative route)"
+    },
+    {
+      "id": "F02",
+      "scene": "scenes/valid/f02_console_parked_south.json",
+      "route_id": "direct",
+      "outcome": "clear_in_model",
+      "route_length_mm": 4300,
+      "first_violation": null,
+      "source": "demo-scope D06.2"
+    },
+    {
+      "id": "F03",
+      "scene": "scenes/valid/f03_north_detour.json",
+      "route_id": "north_detour",
+      "outcome": "clear_in_model",
+      "route_length_mm": 4700,
+      "first_violation": null,
+      "source": "demo-scope D06.3"
+    },
+    {
+      "id": "F04",
+      "scene": "scenes/valid/f04_console_north_blocks_detour.json",
+      "route_id": "north_detour",
+      "outcome": "blocked_in_model",
+      "route_length_mm": 4700,
+      "first_violation": {
+        "rule_code": "blocker_intersection",
+        "entity_ids": [
+          "30000000-0000-4000-8000-000000000002"
+        ],
+        "segment_index": 1,
+        "entry_fraction": {
+          "numerator": 11,
+          "denominator": 120
+        },
+        "contact_center": {
+          "x_mm": {
+            "numerator": 1275,
+            "denominator": 1
+          },
+          "z_mm": {
+            "numerator": 4000,
+            "denominator": 1
+          }
+        }
+      },
+      "derivation": "Console (2500,4000) expanded x 1275..3725, z 3075..4925; segment 1 runs z=4000 from x=1000 to 4000, entry (1275-1000)/3000 = 11/120.",
+      "source": "demo-scope D06.4"
+    },
+    {
+      "id": "F04_direct",
+      "scene": "scenes/valid/f04_console_north_blocks_detour.json",
+      "route_id": "direct",
+      "outcome": "clear_in_model",
+      "route_length_mm": 4300,
+      "first_violation": null,
+      "source": "demo-scope D06.4 (Direct remains clear)"
+    },
+    {
+      "id": "V7x6_direct",
+      "scene": "scenes/valid/variant_room_7000x6000.json",
+      "route_id": "direct",
+      "outcome": "blocked_in_model",
+      "route_length_mm": 4300,
+      "first_violation": {
+        "rule_code": "blocker_intersection",
+        "entity_ids": [
+          "30000000-0000-4000-8000-000000000002"
+        ],
+        "segment_index": 0,
+        "entry_fraction": {
+          "numerator": 11,
+          "denominator": 120
+        },
+        "contact_center": {
+          "x_mm": {
+            "numerator": 1275,
+            "denominator": 1
+          },
+          "z_mm": {
+            "numerator": 2500,
+            "denominator": 1
+          }
+        }
+      },
+      "source": "demo-scope D06.5: fixed internal coordinates across 5-8 m rooms, so the F01 obstruction is unchanged"
+    },
+    {
+      "id": "B01_tangent_blocked",
+      "scene": "scenes/valid/boundary_blocker_tangent.json",
+      "route_id": "direct",
+      "outcome": "blocked_in_model",
+      "route_length_mm": 4300,
+      "first_violation": {
+        "rule_code": "blocker_intersection",
+        "entity_ids": [
+          "30000000-0000-4000-8000-000000000002"
+        ],
+        "segment_index": 0,
+        "entry_fraction": {
+          "numerator": 11,
+          "denominator": 120
+        },
+        "contact_center": {
+          "x_mm": {
+            "numerator": 1275,
+            "denominator": 1
+          },
+          "z_mm": {
+            "numerator": 2500,
+            "denominator": 1
+          }
+        }
+      },
+      "derivation": "Console z=3425: expanded z min 3425-500-400-25 = 2500 exactly touches the route line z=2500; S08.2 tangency counts as blocked. Entry x 1275 as F01.",
+      "source": "technical-spec S08.2 boundary rule"
+    },
+    {
+      "id": "B02_one_mm_clear",
+      "scene": "scenes/valid/boundary_blocker_one_mm_clear.json",
+      "route_id": "direct",
+      "outcome": "clear_in_model",
+      "route_length_mm": 4300,
+      "first_violation": null,
+      "derivation": "Console z=3426: expanded z min 2501 > 2500; segment 1 at x=4000 lies outside expanded x 1275..3725.",
+      "source": "technical-spec S08.2 boundary rule"
+    },
+    {
+      "id": "B03_wall_exact_margin",
+      "scene": "scenes/valid/boundary_wall_exact_margin.json",
+      "route_id": "direct",
+      "outcome": "clear_in_model",
+      "route_length_mm": 4375,
+      "first_violation": null,
+      "derivation": "Payload x=925 = 900 half-width + 25 margin from west wall; S08.2 accepts exact wall margin. Length 3075 + 1300.",
+      "source": "technical-spec S08.2 boundary rule"
+    },
+    {
+      "id": "B04_wall_violation",
+      "scene": "scenes/valid/boundary_wall_violation.json",
+      "route_id": "direct",
+      "outcome": "blocked_in_model",
+      "route_length_mm": 5400,
+      "first_violation": {
+        "rule_code": "room_boundary",
+        "entity_ids": [],
+        "segment_index": 0,
+        "entry_fraction": {
+          "numerator": 163,
+          "denominator": 164
+        },
+        "contact_center": {
+          "x_mm": {
+            "numerator": 5075,
+            "denominator": 1
+          },
+          "z_mm": {
+            "numerator": 2500,
+            "denominator": 1
+          }
+        }
+      },
+      "derivation": "Permitted centre x max 6000-900-25 = 5075; segment 0 runs 1000->5100, leaves at (5075-1000)/4100 = 163/164. Length 4100+1300.",
+      "source": "technical-spec S08.2 room containment"
+    }
+  ]
+}

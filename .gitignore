@@ -1,0 +1,72 @@
+# ---- OS / editors ----
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/*
+!.vscode/extensions.json
+
+# ---- Unity (app-unity/) ----
+app-unity/[Ll]ibrary/
+app-unity/[Tt]emp/
+app-unity/[Oo]bj/
+app-unity/[Bb]uild/
+app-unity/[Bb]uilds/
+app-unity/[Ll]ogs/
+app-unity/[Uu]ser[Ss]ettings/
+app-unity/[Mm]emoryCaptures/
+app-unity/[Rr]ecordings/
+app-unity/.utmp/
+app-unity/*.csproj
+app-unity/*.sln
+app-unity/*.slnx
+app-unity/*.unityproj
+app-unity/*.pidb
+app-unity/*.booproj
+app-unity/*.svd
+app-unity/*.pdb
+app-unity/*.mdb
+app-unity/*.opendb
+app-unity/*.VC.db
+app-unity/sysinfo.txt
+app-unity/crashlytics-build.properties
+app-unity/Assets/StreamingAssets/aa/
+app-unity/Assets/AddressableAssetsData/*/*.bin*
+# Build outputs anywhere
+*.apk
+*.aab
+*.obb
+*.symbols.zip
+
+# ---- Signing / secrets (never commit) ----
+*.keystore
+*.jks
+*.p12
+*.pem
+*.key
+.env
+.env.*
+!.env.example
+**/secrets/
+
+# ---- Python (services/api, scripts) ----
+__pycache__/
+*.py[cod]
+.venv/
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+.coverage
+htmlcov/
+*.egg-info/
+
+# ---- Models, recordings, evidence artifacts ----
+/models/
+services/api/models/
+*.gguf
+*.ggml
+# Private voice recordings (licensed sound assets live under app-unity/Assets/Tryscape/Content)
+/recordings/
+services/api/var/
+artifacts/
+!artifacts/.gitkeep

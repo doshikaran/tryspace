@@ -1,0 +1,22 @@
+{
+  "schema_version": "1.0.0",
+  "proposal_id": "50000000-0000-4000-8000-000000000001",
+  "status": "needs_clarification",
+  "transcript": "Prepare my room for a delivery",
+  "intent": null,
+  "scene": null,
+  "questions": [
+    {
+      "field": "room_dimensions",
+      "prompt": "Use an example room or enter dimensions?",
+      "choices": [
+        "Only one"
+      ]
+    }
+  ],
+  "assumptions": [],
+  "provider_metadata": {
+    "provider_id": "backend_orchestrator",
+    "version": "1.0.0"
+  }
+}

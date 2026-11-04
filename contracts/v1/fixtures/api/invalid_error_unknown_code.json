@@ -1,0 +1,9 @@
+{
+  "error": {
+    "code": "teapot",
+    "message": "x",
+    "request_id": "70000000-0000-4000-8000-000000000001",
+    "retryable": false,
+    "details": []
+  }
+}

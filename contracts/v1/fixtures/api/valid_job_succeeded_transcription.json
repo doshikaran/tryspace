@@ -1,0 +1,12 @@
+{
+  "job_id": "40000000-0000-4000-8000-000000000002",
+  "status": "succeeded",
+  "kind": "transcription",
+  "result_schema_version": "1.0.0",
+  "result": {
+    "text": "Prepare a six by five metre living room",
+    "locale": "en",
+    "provider_id": "backend_asr"
+  },
+  "error": null
+}

@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0.0",
+  "scenario_pack_id": "moving_day",
+  "scenario_pack_version": "1.0.0",
+  "catalog_version": "1.0.0",
+  "entries": [
+    {
+      "catalog_id": "sofa_standard",
+      "label": "Standard sofa",
+      "footprint_width_mm": 1800,
+      "footprint_depth_mm": 800,
+      "rendered_height_mm": 900,
+      "collision_participation": "payload",
+      "allowed_roles": ["payload"],
+      "prefab_key": "sofa_standard_greybox",
+      "editable_pose_constraints": {"snap_mm": 50, "allowed_yaw_deg": [0]},
+      "asset_license_id": "tryscape_original_greybox"
+    },
+    {
+      "catalog_id": "console_standard",
+      "label": "Console table",
+      "footprint_width_mm": 600,
+      "footprint_depth_mm": 1000,
+      "rendered_height_mm": 800,
+      "collision_participation": "floor_obstruction",
+      "allowed_roles": ["blocker"],
+      "prefab_key": "console_standard_greybox",
+      "editable_pose_constraints": {"snap_mm": 50, "allowed_yaw_deg": [0, 90, 180, 270]},
+      "asset_license_id": "tryscape_original_greybox"
+    }
+  ]
+}

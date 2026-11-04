@@ -1,0 +1,70 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.tryscape.invalid/v1/common.schema.json",
+  "title": "Tryscape v1 shared definitions",
+  "description": "Shared value types for v1 contracts (technical-spec S06). Shape only; semantic rules are enforced by the core validator.",
+  "$defs": {
+    "uuid": {
+      "description": "Lowercase canonical UUID string. Lowercase is required so canonical scene bytes are stable.",
+      "type": "string",
+      "pattern": "^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$"
+    },
+    "slug": {
+      "description": "Allowlisted identifier (route ids, catalog ids, codes).",
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]{0,47}$"
+    },
+    "semver": {
+      "type": "string",
+      "pattern": "^(0|[1-9][0-9]{0,3})\\.(0|[1-9][0-9]{0,3})\\.(0|[1-9][0-9]{0,3})$"
+    },
+    "schema_version_1_0_0": {
+      "const": "1.0.0"
+    },
+    "label": {
+      "description": "Plain-text display label; max 80 Unicode code points; no control characters; never interpreted as markup.",
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80,
+      "pattern": "^[^\\u0000-\\u001f\\u007f]+$"
+    },
+    "coordinate_mm": {
+      "description": "Model-space coordinate in integer millimetres. R0 rooms are at most 8000 mm on each axis.",
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 8000
+    },
+    "utc_timestamp": {
+      "description": "UTC ISO-8601 timestamp, audit metadata only.",
+      "type": "string",
+      "format": "date-time",
+      "pattern": "Z$",
+      "maxLength": 40
+    },
+    "sha256_hex": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "rational": {
+      "description": "Exact rational in lowest terms with positive denominator.",
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["numerator", "denominator"],
+      "properties": {
+        "numerator": {"type": "integer", "minimum": -9007199254740991, "maximum": 9007199254740991},
+        "denominator": {"type": "integer", "minimum": 1, "maximum": 9007199254740991}
+      }
+    },
+    "assumption": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "text", "source", "requires_confirmation"],
+      "properties": {
+        "code": {"$ref": "#/$defs/slug"},
+        "text": {"type": "string", "minLength": 1, "maxLength": 240, "pattern": "^[^\\u0000-\\u001f\\u007f]+$"},
+        "source": {"enum": ["template", "scenario_model", "user_request", "example_default"]},
+        "requires_confirmation": {"type": "boolean"}
+      }
+    }
+  }
+}

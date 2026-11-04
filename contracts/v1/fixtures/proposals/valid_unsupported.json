@@ -1,0 +1,14 @@
+{
+  "schema_version": "1.0.0",
+  "proposal_id": "50000000-0000-4000-8000-000000000003",
+  "status": "unsupported",
+  "transcript": "Scan my house from this floor plan PDF and predict where the movers will go",
+  "intent": null,
+  "scene": null,
+  "questions": [],
+  "assumptions": [],
+  "provider_metadata": {
+    "provider_id": "backend_orchestrator",
+    "version": "1.0.0"
+  }
+}
