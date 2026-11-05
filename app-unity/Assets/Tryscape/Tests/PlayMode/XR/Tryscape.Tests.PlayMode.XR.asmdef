@@ -1,0 +1,20 @@
+{
+    "name": "Tryscape.Tests.PlayMode.XR",
+    "rootNamespace": "Tryscape.Tests.PlayMode.XR",
+    "references": [
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner",
+        "Unity.XR.Management",
+        "Unity.XR.OpenXR",
+        "Oculus.Interaction"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": ["nunit.framework.dll"],
+    "autoReferenced": false,
+    "defineConstraints": ["UNITY_INCLUDE_TESTS"],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
