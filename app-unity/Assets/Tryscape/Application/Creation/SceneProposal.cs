@@ -186,13 +186,45 @@ namespace Tryscape.Application.Creation
         public double? Confidence { get; }
     }
 
+    /// <summary>Typed result of one transcription request: a transcript (possibly empty for silence) or a failure.</summary>
+    public sealed class TranscriptionOutcome
+    {
+        TranscriptionOutcome(TranscriptionResult result, ProposalFailure failure, string detailCode, bool retryable)
+        {
+            Result = result;
+            Failure = failure;
+            DetailCode = detailCode;
+            Retryable = retryable;
+        }
+
+        public TranscriptionResult Result { get; }
+
+        /// <summary>Failure kinds are shared with proposals (unavailable, timeout, rejected, invalid response, job failed).</summary>
+        public ProposalFailure Failure { get; }
+
+        public string DetailCode { get; }
+        public bool Retryable { get; }
+        public bool Succeeded => Result != null;
+
+        public static TranscriptionOutcome Of(TranscriptionResult result) =>
+            new TranscriptionOutcome(result ?? throw new ArgumentNullException(nameof(result)), ProposalFailure.None, null, false);
+
+        public static TranscriptionOutcome Failed(ProposalFailure failure, string detailCode, bool retryable = false)
+        {
+            if (failure == ProposalFailure.None)
+                throw new ArgumentException("A failed outcome needs a failure kind", nameof(failure));
+            return new TranscriptionOutcome(null, failure, detailCode, retryable);
+        }
+    }
+
     /// <summary>
-    /// Speech-to-text source (S10.2), kept separate from proposal generation. No client implementation ships yet:
-    /// the backend transcription job route is not deployed, and typed development input bypasses this interface.
+    /// Speech-to-text source (S10.2), kept separate from proposal generation. The R0 implementation is the HTTP adapter
+    /// to <c>POST /v1/transcription-jobs</c>. Implementations must honour cancellation, hold audio only in memory and
+    /// never touch scene state.
     /// </summary>
     public interface ITranscriptionProvider
     {
-        Task<TranscriptionResult> TranscribeAsync(AudioClipData audio, CancellationToken cancellationToken);
+        Task<TranscriptionOutcome> TranscribeAsync(AudioClipData audio, CancellationToken cancellationToken);
     }
 
     /// <summary>Pack-specific acceptance of a proposal before review (catalog, semantics, intent/scene consistency).</summary>

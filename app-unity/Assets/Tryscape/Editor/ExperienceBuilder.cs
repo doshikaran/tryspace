@@ -178,7 +178,7 @@ namespace Tryscape.Editor
             var welcome = Section(canvasGo.transform, "Welcome");
             buttons.Add(Button(welcome, "CreateWithHands", "Create with hands", 0, 200, 440));
             buttons.Add(Button(welcome, "DescribeTyped", "Describe (typed, dev input)", 0, 130, 440));
-            buttons.Add(Button(welcome, "SpeakSituation", "Speak a situation (unavailable)", 0, 60, 440));
+            buttons.Add(Button(welcome, "SpeakSituation", "Describe with voice", 0, 60, 440));
             buttons.Add(Button(welcome, "OpenSaved", "Open saved (unavailable)", 0, -10, 440));
             buttons.Add(Button(welcome, "Help", "Help", 0, -80, 440));
             buttons.Add(Button(welcome, "ResumeEditing", "Resume editing", 0, -150, 440));
@@ -198,6 +198,21 @@ namespace Tryscape.Editor
             buttons.Add(Button(describe, "CancelProposal", "Cancel", 130, -120, 250));
             buttons.Add(Button(describe, "DescribeBack", "Back", 0, -185, 250));
 
+            // Voice: processing notice before the first recording, then status/elapsed time, Stop and Cancel.
+            var voice = Section(canvasGo.transform, "Voice");
+            var voiceTitle = Text(voice, "VoiceTitle", "Describe with voice", 24, FontStyle.Bold, new Vector2(0, 225), new Vector2(520, 36));
+            voiceTitle.alignment = TextAnchor.MiddleCenter;
+            var voiceCard = Text(voice, "VoiceCard", "", 20, FontStyle.Normal, new Vector2(0, 120), new Vector2(520, 170));
+            voiceCard.alignment = TextAnchor.UpperLeft;
+            voiceCard.supportRichText = false; // may contain the untrusted transcript
+            buttons.Add(Button(voice, "VoiceAllow", "Allow and record", 0, 0, 440));
+            buttons.Add(Button(voice, "VoiceStop", "Stop", -130, 0, 250));
+            buttons.Add(Button(voice, "VoiceCancel", "Cancel", 130, 0, 250));
+            buttons.Add(Button(voice, "VoiceRetry", "Record again", -130, -65, 250));
+            buttons.Add(Button(voice, "VoiceTypeInstead", "Type instead", 130, -65, 250));
+            buttons.Add(Button(voice, "VoiceHands", "Create with hands", -130, -130, 250));
+            buttons.Add(Button(voice, "VoiceBack", "Menu", 130, -130, 250));
+
             // Proposal review: interpretation, assumptions, clarification choices; confirmation is a hand press.
             var review = Section(canvasGo.transform, "Review");
             var reviewCard = Text(review, "ReviewCard", "", 18, FontStyle.Normal, new Vector2(0, 140), new Vector2(520, 210));
@@ -212,6 +227,7 @@ namespace Tryscape.Editor
             buttons.Add(Button(review, "ReviewHands", "Create with hands", 130, -130, 250));
             buttons.Add(Button(review, "DescribeAgain", "Describe again", -130, -195, 250));
             buttons.Add(Button(review, "ReviewMenu", "Menu", 130, -195, 250));
+            buttons.Add(Button(review, "EditTranscript", "Edit transcript", 0, -260, 250));
 
             var create = Section(canvasGo.transform, "Create");
             var draft = Text(create, "Draft", "", 20, FontStyle.Normal, new Vector2(0, 175), new Vector2(520, 90));
@@ -254,7 +270,7 @@ namespace Tryscape.Editor
 
             var controller = canvasGo.AddComponent<PanelController>();
             controller.Configure(welcome.gameObject, create.gameObject, edit.gameObject, status, draft, scene, buttons, result,
-                describe.gameObject, review.gameObject, reviewCard, input);
+                describe.gameObject, review.gameObject, reviewCard, input, voice.gameObject, voiceCard);
 
             var created = QuickActionsAPI.AddRayCanvasInteraction(canvasGo).Concat(QuickActionsAPI.AddPokeCanvasInteraction(canvasGo)).ToList();
             Debug.Log($"[Tryscape] Panel canvas interaction objects created={created.Count}");

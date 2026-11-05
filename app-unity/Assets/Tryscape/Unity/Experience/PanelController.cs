@@ -14,9 +14,6 @@ namespace Tryscape.Unity.Experience
     /// </summary>
     public sealed class PanelController : MonoBehaviour
     {
-        public const string VoiceUnavailable =
-            "Voice capture is not connected in this build. 'Describe (typed, dev)' tests the same interpretation " +
-            "pipeline with typed text; 'Create with hands' builds the same rehearsal without a service.";
 
         /// <summary>Development presets: typed transcripts selectable by hand (no keyboard needed). Not speech.</summary>
         public static readonly string[] PresetTranscripts =
@@ -45,6 +42,8 @@ namespace Tryscape.Unity.Experience
         [SerializeField] GameObject _reviewSection;
         [SerializeField] Text _reviewCard;
         [SerializeField] InputField _transcriptInput;
+        [SerializeField] GameObject _voiceSection;
+        [SerializeField] Text _voiceCard;
         [SerializeField] List<Button> _buttons = new List<Button>();
 
         TryscapeApp _app;
@@ -52,8 +51,11 @@ namespace Tryscape.Unity.Experience
 
         public void Configure(GameObject welcome, GameObject create, GameObject edit, Text status, Text draftSummary,
             Text sceneSummary, IEnumerable<Button> buttons, Text resultCard = null, GameObject describe = null,
-            GameObject review = null, Text reviewCard = null, InputField transcriptInput = null)
+            GameObject review = null, Text reviewCard = null, InputField transcriptInput = null, GameObject voice = null,
+            Text voiceCard = null)
         {
+            _voiceSection = voice;
+            _voiceCard = voiceCard;
             _describeSection = describe;
             _reviewSection = review;
             _reviewCard = reviewCard;
@@ -106,7 +108,15 @@ namespace Tryscape.Unity.Experience
             switch (id)
             {
                 case "CreateWithHands": _app.BeginHandCreation(); break;
-                case "SpeakSituation": ShowMessage(VoiceUnavailable); break;
+                case "SpeakSituation": _app.BeginVoice(); break;
+                case "VoiceAllow": _app.AllowVoice(); break;
+                case "VoiceStop": _app.StopRecording(); break;
+                case "VoiceCancel": _app.CancelVoice(); break;
+                case "VoiceRetry": _app.BeginVoice(); break;
+                case "VoiceTypeInstead": _app.BeginTypedDescription(); break;
+                case "VoiceHands": _app.BeginHandCreation(); break;
+                case "VoiceBack": _app.ShowWelcome(); break;
+                case "EditTranscript": _app.EditTranscript(); break;
                 case "OpenSaved": ShowMessage(SavedUnavailable); break;
                 case "Help": ShowMessage(HelpText); break;
                 case "WidthMinus": _app.AdjustRoomWidth(-500); break;
@@ -183,6 +193,7 @@ namespace Tryscape.Unity.Experience
             SetActive(_createSection, mode == AppMode.CreatingWithHands || mode == AppMode.CorrectingProposal);
             SetActive(_describeSection, mode == AppMode.DescribingTyped);
             SetActive(_reviewSection, mode == AppMode.ReviewingProposal);
+            SetActive(_voiceSection, mode == AppMode.RecordingVoice);
             SetActive(_editSection, mode == AppMode.Editing);
             if (_status != null)
                 _status.text = _app.Status;
@@ -248,9 +259,31 @@ namespace Tryscape.Unity.Experience
                 if (visible)
                     SetLabel(id, question.Choices[i]);
             }
+            SetVisible("EditTranscript", proposal != null);
+            RefreshVoice(mode, creation);
             SetVisible("ConfirmProposal", ready);
             SetVisible("AdjustProposal", ready);
             SetVisible("ReviewHands", proposal != null && !ready);
+        }
+
+        void RefreshVoice(AppMode mode, CreationCoordinator creation)
+        {
+            var recorder = _app.Recorder;
+            if (_voiceCard != null)
+                _voiceCard.text = _app.VoiceText;
+            var inVoice = mode == AppMode.RecordingVoice && recorder != null;
+            var consent = inVoice && !_app.AudioConsentGiven;
+            var recording = inVoice && (recorder.State == RecorderState.Recording || recorder.State == RecorderState.RequestingPermission);
+            var busy = inVoice && creation != null && creation.IsBusy;
+            var settled = inVoice && !consent && !recording && !busy;
+            SetVisible("VoiceAllow", consent);
+            SetVisible("VoiceStop", recording);
+            SetInteractable("VoiceStop", recorder != null && recorder.State == RecorderState.Recording);
+            SetVisible("VoiceCancel", recording || busy);
+            SetVisible("VoiceRetry", settled);
+            SetVisible("VoiceTypeInstead", consent || settled);
+            SetVisible("VoiceHands", settled);
+            SetVisible("VoiceBack", consent || settled);
         }
 
         void SetVisible(string id, bool visible)

@@ -23,15 +23,18 @@ import uuid
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
+from pathlib import Path
 from typing import Any
 
 from sqlalchemy import delete, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker, create_async_engine
 
+from tryscape_api.audio_store import AudioStore
 from tryscape_api.config import Settings, get_settings
 from tryscape_api.creation.assembler import SceneCompilerError
 from tryscape_api.creation.intent import DeterministicIntentExtractor, IntentExtractor
 from tryscape_api.creation.proposals import ProposalService
+from tryscape_api.creation.transcription import Transcriber, TranscriptionFailed, WavError, WhisperCppTranscriber
 from tryscape_api.db import IdempotencyRecord, Job
 
 logger = logging.getLogger("tryscape_api.worker")
@@ -48,6 +51,20 @@ class Claimed:
     kind: str
     payload: dict[str, Any]
     lease_owner: str
+    input_ref: str | None = None
+
+
+def configured_transcriber(settings: Settings) -> Transcriber | None:
+    """whisper.cpp from operator configuration, or None (transcription jobs then fail `provider_unavailable`)."""
+    if not settings.asr_binary or not settings.asr_model:
+        return None
+    try:
+        return WhisperCppTranscriber(
+            Path(settings.asr_binary), Path(settings.asr_model), settings.asr_threads, settings.asr_provider_id
+        )
+    except TranscriptionFailed as exc:
+        logger.error("asr_not_available code=%s", exc.code)
+        return None
 
 
 class Worker:
@@ -58,12 +75,19 @@ class Worker:
         extractor: IntentExtractor | None = None,
         worker_id: str | None = None,
         clock: Callable[[], datetime] = _now,
+        transcriber: Transcriber | None = None,
     ) -> None:
         self._sessions = sessionmaker
         self._settings = settings
         self._proposals = ProposalService(extractor or DeterministicIntentExtractor())
+        self._audio = AudioStore(settings.audio_dir)
+        self._transcriber = transcriber if transcriber is not None else configured_transcriber(settings)
         self.worker_id = worker_id or f"{socket.gethostname()[:40]}-{uuid.uuid4().hex[:8]}"
         self._clock = clock
+
+    @property
+    def has_transcriber(self) -> bool:
+        return self._transcriber is not None
 
     async def claim(self) -> Claimed | None:
         now = self._clock()
@@ -84,29 +108,26 @@ class Worker:
             ).scalar_one_or_none()
             if job is None:
                 return None
-            if job.deadline_at <= now:
-                job.status, job.error_code, job.input_payload, job.lease_owner = (
-                    "expired",
-                    "deadline_exceeded",
-                    None,
-                    None,
-                )
+            if job.deadline_at <= now or job.attempts >= MAX_ATTEMPTS or job.input_payload is None:
+                expired = job.deadline_at <= now
+                job.status = "expired" if expired else "failed"
+                job.error_code = "deadline_exceeded" if expired else "internal_error"
+                stored, job.input_payload, job.input_ref, job.lease_owner = job.input_ref, None, None, None
                 await db.commit()
-                return None
-            if job.attempts >= MAX_ATTEMPTS or job.input_payload is None:
-                job.status, job.error_code, job.input_payload, job.lease_owner = "failed", "internal_error", None, None
-                await db.commit()
+                self._audio.delete(stored)
                 return None
             job.status = "running"
             job.lease_owner = self.worker_id
             job.lease_expires_at = now + timedelta(seconds=self._settings.worker_lease_seconds)
             job.attempts += 1
-            claimed = Claimed(job.id, job.kind, dict(job.input_payload), self.worker_id)
+            claimed = Claimed(job.id, job.kind, dict(job.input_payload), self.worker_id, job.input_ref)
             await db.commit()
             return claimed
 
     def execute(self, claimed: Claimed) -> tuple[str, dict[str, Any] | None, str | None]:
         """Returns (status, result, error_code). Never raises for an expected failure."""
+        if claimed.kind == "transcription":
+            return self._transcribe(claimed)
         if claimed.kind != "scene_proposal":
             return "failed", None, "internal_error"
         try:
@@ -119,6 +140,27 @@ class Worker:
             return "failed", None, "provider_unavailable"
         return "succeeded", proposal.model_dump(), None
 
+    def _transcribe(self, claimed: Claimed) -> tuple[str, dict[str, Any] | None, str | None]:
+        if self._transcriber is None:
+            return "failed", None, "provider_unavailable"  # no ASR configured on this host
+        data = self._audio.read(claimed.input_ref or "")
+        if data is None:
+            logger.error("transcription_audio_missing job_id=%s", claimed.job_id)
+            return "failed", None, "internal_error"
+        try:
+            transcript = self._transcriber.transcribe(data, timeout_seconds=self._settings.asr_timeout_seconds)
+        except WavError:
+            return "failed", None, "invalid_audio"
+        except TranscriptionFailed as exc:
+            logger.error("transcription_failed job_id=%s code=%s", claimed.job_id, exc.code)
+            return "failed", None, "provider_unavailable"
+        except Exception as exc:  # provider boundary: safe type only
+            logger.error("transcription_failed job_id=%s type=%s", claimed.job_id, type(exc).__name__)
+            return "failed", None, "provider_unavailable"
+        # Empty text (silence) is a successful transcription; the client asks the user to try again.
+        locale = str(claimed.payload.get("locale", "en"))
+        return "succeeded", {"text": transcript.text, "locale": locale, "provider_id": transcript.provider_id}, None
+
     async def complete(self, claimed: Claimed, status: str, result: dict[str, Any] | None, error: str | None) -> str:
         """Conditional completion. Returns the job's resulting status as seen by this worker."""
         now = self._clock()
@@ -127,7 +169,9 @@ class Worker:
             done = await db.execute(
                 update(Job)
                 .where(owned, Job.status == "running", Job.deadline_at > now)
-                .values(status=status, result=result, error_code=error, input_payload=None, lease_owner=None)
+                .values(
+                    status=status, result=result, error_code=error, input_payload=None, input_ref=None, lease_owner=None
+                )
             )
             if done.rowcount == 1:  # type: ignore[attr-defined]
                 await db.commit()
@@ -135,7 +179,7 @@ class Worker:
             cancelled = await db.execute(
                 update(Job)
                 .where(owned, Job.status == "cancel_requested")
-                .values(status="cancelled", result=None, input_payload=None, lease_owner=None)
+                .values(status="cancelled", result=None, input_payload=None, input_ref=None, lease_owner=None)
             )
             if cancelled.rowcount == 1:  # type: ignore[attr-defined]
                 await db.commit()
@@ -145,7 +189,12 @@ class Worker:
                 update(Job)
                 .where(owned, Job.status == "running", Job.deadline_at <= now)
                 .values(
-                    status="expired", error_code="deadline_exceeded", result=None, input_payload=None, lease_owner=None
+                    status="expired",
+                    error_code="deadline_exceeded",
+                    result=None,
+                    input_payload=None,
+                    input_ref=None,
+                    lease_owner=None,
                 )
             )
             await db.commit()
@@ -161,14 +210,20 @@ class Worker:
             await db.execute(delete(IdempotencyRecord).where(IdempotencyRecord.expires_at <= now))
             gone = await db.execute(delete(Job).where(Job.expires_at <= now))
             await db.commit()
-            return int(gone.rowcount or 0)  # type: ignore[attr-defined]
+        # Audio cleanup deadline (S13.3): stored audio older than this is removed whatever its job state.
+        self._audio.sweep(self._settings.audio_max_age_seconds)
+        return int(gone.rowcount or 0)  # type: ignore[attr-defined]
 
     async def run_once(self) -> str | None:
         claimed = await self.claim()
         if claimed is None:
             return None
-        status, result, error = self.execute(claimed)
-        return await self.complete(claimed, status, result, error)
+        # Blocking work (ASR subprocess) runs off the event loop.
+        status, result, error = await asyncio.to_thread(self.execute, claimed)
+        outcome = await self.complete(claimed, status, result, error)
+        if outcome != "discarded":  # this worker wrote the terminal state; another owner keeps its input
+            self._audio.delete(claimed.input_ref)
+        return outcome
 
     async def run_forever(self, stop: asyncio.Event) -> None:
         last_purge = 0.0
@@ -196,7 +251,11 @@ async def _main() -> None:
     loop = asyncio.get_running_loop()
     for sig in (signal.SIGINT, signal.SIGTERM):
         loop.add_signal_handler(sig, stop.set)
-    logger.info("worker_started id=%s extractor=deterministic_rules", worker.worker_id)
+    logger.info(
+        "worker_started id=%s extractor=deterministic_rules asr=%s",
+        worker.worker_id,
+        settings.asr_provider_id if worker.has_transcriber else "not_configured",
+    )
     try:
         await worker.run_forever(stop)
     finally:

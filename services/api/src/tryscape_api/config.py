@@ -36,6 +36,19 @@ class Settings(BaseSettings):
     worker_lease_seconds: int = Field(default=10, ge=2, le=60)
     worker_poll_seconds: float = Field(default=0.25, ge=0.05, le=5)
 
+    audio_dir: str = Field(
+        default="",
+        max_length=1024,
+        description="Access-restricted directory shared by API and worker for temporary job audio (random file names). "
+        "Empty: a per-user directory under the system temp directory.",
+    )
+    audio_max_age_seconds: int = Field(default=15 * 60, ge=60, le=15 * 60)
+    asr_binary: str = Field(default="", max_length=1024, description="Path to a pinned whisper.cpp whisper-cli binary.")
+    asr_model: str = Field(default="", max_length=1024, description="Path to the ggml model file used by whisper-cli.")
+    asr_provider_id: str = Field(default="whisper_cpp_base_en", pattern=r"^[a-z][a-z0-9_]{0,47}$")
+    asr_threads: int = Field(default=4, ge=1, le=8)
+    asr_timeout_seconds: float = Field(default=20, ge=1, le=30)
+
     @property
     def accepted_consent_versions(self) -> frozenset[str]:
         return frozenset(v.strip() for v in self.consent_versions.split(",") if v.strip())

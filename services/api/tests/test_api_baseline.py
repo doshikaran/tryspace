@@ -130,11 +130,10 @@ async def test_error_request_id_matches_header(client: AsyncClient) -> None:
 
 
 async def test_unknown_and_deferred_routes_are_absent(client: AsyncClient) -> None:
-    # R1 routes and not-yet-implemented transcription jobs must not exist as success stubs.
+    # R1 routes must not exist as success stubs.
     for method, path in [
         ("GET", "/v1/nope"),
         ("POST", "/v1/projects"),
-        ("POST", "/v1/transcription-jobs"),
     ]:
         resp = await client.request(method, path, content=b"{}", headers=JSON)
         assert resp.status_code == 404, (method, path)
@@ -142,6 +141,7 @@ async def test_unknown_and_deferred_routes_are_absent(client: AsyncClient) -> No
     # Implemented job routes exist but never answer without a session.
     for method, path in [
         ("POST", "/v1/scene-proposal-jobs"),
+        ("POST", "/v1/transcription-jobs"),
         ("GET", f"/v1/jobs/{uuid.uuid4()}"),
         ("DELETE", f"/v1/jobs/{uuid.uuid4()}"),
     ]:

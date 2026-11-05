@@ -2,7 +2,8 @@
 
 Implemented R0 routes: health (live/ready), anonymous sessions, and scene-proposal jobs (create/poll/cancel; executed
 by the separate `tryscape_api.worker` process). The worker's intent extractor is currently the deterministic
-development parser (`deterministic_rules`), not a model; transcription jobs are not exposed yet (technical-spec S13.2).
+development parser (`deterministic_rules`), not a model. Transcription jobs (raw WAV) run whisper.cpp in the worker when
+configured (technical-spec S13.2).
 """
 
 from __future__ import annotations
@@ -20,8 +21,9 @@ from starlette.types import ASGIApp
 
 from tryscape_api import strict_json
 from tryscape_api.config import Settings, get_settings
+from tryscape_api.creation.transcription import MAX_BYTES
 from tryscape_api.errors import ApiError, ErrorCode, install_error_handlers
-from tryscape_api.jobs import build_router
+from tryscape_api.jobs import TRANSCRIPTION_PATH, build_router
 from tryscape_api.request_context import RequestContextMiddleware
 from tryscape_api.sessions import issue_session
 
@@ -105,7 +107,9 @@ def create_fastapi(settings: Settings, engine: AsyncEngine | None = None) -> Fas
 def create_app(settings: Settings | None = None, engine: AsyncEngine | None = None) -> ASGIApp:
     resolved = settings or get_settings()
     return RequestContextMiddleware(
-        create_fastapi(resolved, engine), json_body_limit_bytes=resolved.json_body_limit_bytes
+        create_fastapi(resolved, engine),
+        json_body_limit_bytes=resolved.json_body_limit_bytes,
+        path_limits={TRANSCRIPTION_PATH: MAX_BYTES},
     )
 
 

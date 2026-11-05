@@ -23,6 +23,9 @@ namespace Tryscape.Unity
         /// <summary>Typed development transcript entry and in-flight interpretation (not voice recognition).</summary>
         DescribingTyped,
 
+        /// <summary>Voice: consent notice, recording, transcription and interpretation in flight, or a voice failure.</summary>
+        RecordingVoice,
+
         /// <summary>Reviewing a proposal: ready, needs clarification, or unsupported.</summary>
         ReviewingProposal,
 
@@ -56,6 +59,9 @@ namespace Tryscape.Unity
         bool _showDetails;
         Catalog _catalog;
         CreationCoordinator _creation;
+        VoiceRecorder _recorder;
+        bool _audioConsentGiven;
+        int _shownTenths = -1;
         MovingDayParameters _proposed;
         EditingSession _session;
         DragController _drag;
@@ -91,19 +97,43 @@ namespace Tryscape.Unity
 
         public bool ProposalEdited => _proposed != null && !MovingDayProposals.Same(_proposed, Draft);
 
+        public VoiceRecorder Recorder => _recorder;
+
+        /// <summary>The user accepted the remote audio-processing notice in this app session (S10.5).</summary>
+        public bool AudioConsentGiven => _audioConsentGiven;
+
+        public const string AudioNotice =
+            "Your recording (up to 15 s) is sent to the Tryscape creation service to be transcribed, then deleted. " +
+            "Nothing is saved on this headset. The text is then interpreted by rule-based development code.";
+
         /// <summary>
-        /// Replaces the proposal source, for tests or another adapter. Any in-flight operation is cancelled and the
-        /// coordinator is rebuilt.
+        /// Replaces the proposal and transcription sources, for tests or another adapter. Any in-flight operation is
+        /// cancelled and the coordinator is rebuilt.
         /// </summary>
-        public void UseProposalProvider(ISceneProposalProvider provider, TimeSpan? budget = null)
+        public void UseProposalProvider(ISceneProposalProvider provider, TimeSpan? budget = null,
+            ITranscriptionProvider transcriber = null)
         {
             if (_creation != null)
             {
                 _creation.Changed -= OnCreationChanged;
                 _creation.Dispose();
             }
-            _creation = new CreationCoordinator(provider, new MovingDayProposals(_catalog), budget);
+            _creation = new CreationCoordinator(provider, new MovingDayProposals(_catalog), budget, transcriber);
             _creation.Changed += OnCreationChanged;
+        }
+
+        /// <summary>Replaces the microphone (tests use fakes). Any recording in progress is discarded.</summary>
+        public void UseMicrophone(IMicrophone microphone)
+        {
+            if (_recorder != null)
+            {
+                _recorder.Cancel();
+                _recorder.Changed -= OnRecorderChanged;
+                _recorder.Completed -= OnRecordingCompleted;
+            }
+            _recorder = new VoiceRecorder(microphone);
+            _recorder.Changed += OnRecorderChanged;
+            _recorder.Completed += OnRecordingCompleted;
         }
 
         public void Configure(ScenePresenter presenter, PlacementGhost ghost, PanelController panel, TabletopController tabletop,
@@ -119,7 +149,10 @@ namespace Tryscape.Unity
         void Awake()
         {
             _catalog = MovingDayPack.CreateCatalog();
-            UseProposalProvider(new BackendSceneProposalProvider(CreationServiceConfig.ForThisBuild(), _catalog.CatalogVersion));
+            var service = new CreationServiceClient(CreationServiceConfig.ForThisBuild());
+            UseProposalProvider(new BackendSceneProposalProvider(service, _catalog.CatalogVersion), null,
+                new BackendTranscriptionProvider(service));
+            UseMicrophone(new UnityMicrophone());
             if (_ghost != null)
                 _ghost.Hide();
             if (_presenter != null)
@@ -146,6 +179,14 @@ namespace Tryscape.Unity
                 _creation.Changed -= OnCreationChanged;
                 _creation.Dispose();
             }
+            if (_recorder != null)
+                _recorder.Cancel(); // releases the microphone and drops any audio
+        }
+
+        void Update()
+        {
+            if (_recorder != null && _recorder.State == RecorderState.Recording)
+                _recorder.Tick(Time.unscaledDeltaTime);
         }
 
         void Start()
@@ -159,6 +200,7 @@ namespace Tryscape.Unity
 
         public void BeginHandCreation()
         {
+            _recorder.Cancel();
             _creation.Cancel();
             _proposed = null;
             Mode = AppMode.CreatingWithHands;
@@ -169,6 +211,7 @@ namespace Tryscape.Unity
         public void ShowWelcome()
         {
             CancelDrag();
+            _recorder.Cancel();
             _creation.Cancel();
             _proposed = null;
             if (_playback != null) _playback.Pause();
@@ -220,6 +263,7 @@ namespace Tryscape.Unity
         {
             CancelDrag();
             if (_playback != null) _playback.Pause();
+            _recorder.Cancel();
             _creation.Cancel();
             _proposed = null;
             Mode = AppMode.DescribingTyped;
@@ -238,6 +282,132 @@ namespace Tryscape.Unity
             if (Mode != AppMode.DescribingTyped)
                 return;
             _ = _creation.Submit(TypedTranscript);
+        }
+
+        // ---- Creation from speech (S10.1): consent, record, transcribe, interpret, review ----
+
+        /// <summary>"Describe with voice": shows the processing notice first, then records.</summary>
+        public void BeginVoice()
+        {
+            CancelDrag();
+            if (_playback != null) _playback.Pause();
+            _recorder.Cancel();
+            _creation.Cancel();
+            _proposed = null;
+            Mode = AppMode.RecordingVoice;
+            if (!_audioConsentGiven)
+            {
+                SetStatus("Before recording: " + AudioNotice);
+                return;
+            }
+            _recorder.Begin();
+        }
+
+        public void AllowVoice()
+        {
+            if (Mode != AppMode.RecordingVoice)
+                return;
+            _audioConsentGiven = true;
+            _recorder.Begin();
+        }
+
+        public void StopRecording() => _recorder.Stop();
+
+        /// <summary>Cancels recording, transcription or interpretation. Nothing is uploaded or changed after this.</summary>
+        public void CancelVoice()
+        {
+            var wasRecording = _recorder.State == RecorderState.Recording || _recorder.State == RecorderState.RequestingPermission;
+            _recorder.Cancel();
+            if (_creation.IsBusy)
+                _creation.Cancel();
+            SetStatus(wasRecording ? "Recording cancelled; nothing was sent. Nothing was changed." : "Cancelled. Nothing was changed.");
+        }
+
+        /// <summary>Review correction: open the typed editor with the transcript, to fix words or pick a preset.</summary>
+        public void EditTranscript()
+        {
+            // What the user actually said or typed (local), without clarification answer lines.
+            var transcript = string.Join("\n", (_creation.Transcript ?? "").Split('\n')
+                .Where(line => !line.TrimStart().StartsWith(ClarificationAnswers.Prefix, StringComparison.OrdinalIgnoreCase))).Trim();
+            BeginTypedDescription();
+            TypedTranscript = transcript;
+            SetStatus("Correct the transcript or pick an example, then Interpret. Nothing is built until you confirm.");
+        }
+
+        /// <summary>Recording/transcription status line for the voice section.</summary>
+        public string VoiceText
+        {
+            get
+            {
+                if (Mode != AppMode.RecordingVoice || _recorder == null)
+                    return "";
+                if (!_audioConsentGiven)
+                    return AudioNotice;
+                if (_recorder.State == RecorderState.Recording)
+                    return $"RECORDING  {_recorder.ElapsedSeconds:0.0} s of {_recorder.MaxSeconds} s\nDescribe the room, the sofa delivery and the console table. Press Stop when done.";
+                if (_recorder.State == RecorderState.RequestingPermission)
+                    return "Waiting for microphone permission...";
+                if (_creation.State == CreationState.Transcribing)
+                    return "Transcribing your recording...";
+                if (_creation.State == CreationState.Proposing)
+                    return $"You said: \"{Clip(_creation.Transcript)}\"\nInterpreting...";
+                return "";
+            }
+        }
+
+        static string Clip(string text) => text == null ? "" : text.Length > 160 ? text.Substring(0, 160) + "..." : text;
+
+        void OnRecorderChanged()
+        {
+            switch (_recorder.State)
+            {
+                case RecorderState.Recording:
+                    var tenths = (int)(_recorder.ElapsedSeconds * 10);
+                    if (tenths == _shownTenths)
+                        return; // refresh the panel at most ten times per second
+                    _shownTenths = tenths;
+                    SetStatus("Recording. Press Stop when you have finished, or Cancel.");
+                    break;
+                case RecorderState.RequestingPermission:
+                    SetStatus("Microphone permission is needed to record. Choose Allow in the system prompt.");
+                    break;
+                case RecorderState.Failed:
+                    SetStatus(RecorderFailureText(_recorder.Failure) + (_session != null ? " Your current scene is unchanged." : ""));
+                    break;
+                default:
+                    _shownTenths = -1;
+                    Changed();
+                    break;
+            }
+        }
+
+        void OnRecordingCompleted(AudioClipData clip)
+        {
+            _shownTenths = -1;
+            if (Mode != AppMode.RecordingVoice)
+                return;
+            _ = _creation.SubmitAudio(clip);
+        }
+
+        static string RecorderFailureText(RecorderFailure failure)
+        {
+            switch (failure)
+            {
+                case RecorderFailure.Unavailable:
+                    return "No microphone is available. Type the description instead, or create with hands.";
+                case RecorderFailure.PermissionDenied:
+                    return "Microphone permission was not granted, so nothing was recorded. Type instead or create with hands; you can allow the microphone in system settings.";
+                case RecorderFailure.DeviceLost:
+                    return "The microphone stopped (it was disconnected or permission was revoked). The recording was discarded.";
+                case RecorderFailure.TooShort:
+                    return "That recording was too short. Record again and describe the room.";
+                case RecorderFailure.Silence:
+                    return "No sound was picked up, so nothing was sent. Check the microphone and record again.";
+                case RecorderFailure.Interrupted:
+                    return "Recording stopped because the app lost focus; the audio was discarded.";
+                default:
+                    return "Recording failed.";
+            }
         }
 
         public void CancelProposal()
@@ -266,9 +436,9 @@ namespace Tryscape.Unity
                 SetStatus("Enter the room size with the controls. Values stay illustrative, not measurements.");
                 return;
             }
-            Mode = AppMode.DescribingTyped;
+            Mode = _creation.TranscriptFromVoice ? AppMode.RecordingVoice : AppMode.DescribingTyped;
             TypedTranscript = next;
-            _ = _creation.Submit(next);
+            _ = _creation.SubmitAnswer(next);
         }
 
         public void BeginProposalCorrection()
@@ -325,11 +495,14 @@ namespace Tryscape.Unity
                 if (proposal == null)
                     return "";
                 var text = new StringBuilder();
-                text.Append("Typed development input (not voice). Interpreter: ")
-                    .Append(proposal.ProviderId).Append(' ').Append(proposal.ProviderVersion)
+                if (_creation.TranscriptFromVoice && _creation.TranscriptionProviderId != null)
+                    text.Append("Spoken input, transcribed by ").Append(_creation.TranscriptionProviderId).Append(". Interpreter: ");
+                else
+                    text.Append("Typed development input (not voice). Interpreter: ");
+                text.Append(proposal.ProviderId).Append(' ').Append(proposal.ProviderVersion)
                     .Append(proposal.ProviderId == "deterministic_rules" ? " (rule-based, not an AI model)" : "").Append('\n');
                 var said = proposal.Transcript.Split('\n')[0];
-                text.Append("You wrote: \"").Append(said.Length > 160 ? said.Substring(0, 160) + "..." : said).Append("\"\n");
+                text.Append(_creation.TranscriptFromVoice ? "You said: \"" : "You wrote: \"").Append(said.Length > 160 ? said.Substring(0, 160) + "..." : said).Append("\"\n");
                 switch (proposal.Status)
                 {
                     case ProposalStatus.Ready:
@@ -363,6 +536,9 @@ namespace Tryscape.Unity
         {
             switch (_creation.State)
             {
+                case CreationState.Transcribing:
+                    SetStatus("Transcribing your recording... (Cancel to stop)");
+                    break;
                 case CreationState.Proposing:
                     SetStatus("Interpreting your description... (Cancel to stop)");
                     break;
@@ -382,14 +558,33 @@ namespace Tryscape.Unity
                             : "That request is outside what this build supports. Nothing was changed.");
                     break;
                 case CreationState.Failed:
-                    if (Mode != AppMode.DescribingTyped)
-                        Mode = AppMode.DescribingTyped;
-                    SetStatus(FailureText(_creation.Failure) + (_session != null ? " Your current scene is unchanged." : ""));
+                    var voice = _creation.TranscriptFromVoice;
+                    Mode = voice ? AppMode.RecordingVoice : AppMode.DescribingTyped;
+                    SetStatus((voice ? VoiceFailureText(_creation.Failure) : FailureText(_creation.Failure)) +
+                              (_session != null ? " Your current scene is unchanged." : ""));
                     break;
                 default:
                     Changed();
                     break;
             }
+        }
+
+        static string VoiceFailureText(ProposalOutcome failure)
+        {
+            switch (failure?.DetailCode)
+            {
+                case "no_speech":
+                    return "No words were recognised. Record again, or type the description instead.";
+                case "transcription_not_configured":
+                case "service_not_configured":
+                    return "Voice needs the creation service, which is not configured in this build. Type instead or create with hands.";
+                case "payload_too_large":
+                case "audio_too_long":
+                    return "That recording was too long to send. Record again (15 s maximum).";
+            }
+            return failure?.Failure == ProposalFailure.Timeout
+                ? "Transcription and interpretation took too long and were stopped. Record again, type instead, or create with hands."
+                : FailureText(failure);
         }
 
         static string FailureText(ProposalOutcome failure)
@@ -668,10 +863,12 @@ namespace Tryscape.Unity
         public void Suspend()
         {
             CancelDrag();
-            if (_creation != null && _creation.State == CreationState.Proposing)
+            if (_recorder != null)
+                _recorder.Suspend(); // stops the microphone immediately and drops the audio (S05.3)
+            if (_creation != null && _creation.IsBusy)
             {
                 _creation.Suspend();
-                SetStatus("Interpretation was cancelled because the app lost focus. Nothing was changed.");
+                SetStatus("Transcription/interpretation was cancelled because the app lost focus. Nothing was changed.");
             }
         }
 

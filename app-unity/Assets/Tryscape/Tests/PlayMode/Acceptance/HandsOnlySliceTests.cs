@@ -304,9 +304,15 @@ namespace Tryscape.Tests.PlayMode.Acceptance
         [UnityTest]
         public IEnumerator UnavailableFeaturesSayWhyInsteadOfPretending()
         {
+            // Voice creation now exists, but its entry point only shows the processing notice: no recording,
+            // microphone access or scene before the user explicitly allows it.
             _panel.Press("SpeakSituation");
-            Assert.AreEqual(AppMode.Welcome, _app.Mode);
-            Assert.IsNull(_app.Session, "voice entry must not create a scene in this build");
+            Assert.AreEqual(AppMode.RecordingVoice, _app.Mode);
+            Assert.IsFalse(_app.AudioConsentGiven);
+            Assert.AreEqual(Tryscape.Application.Creation.RecorderState.Idle, _app.Recorder.State);
+            StringAssert.Contains("sent to the Tryscape creation service", _app.Status);
+            Assert.IsNull(_app.Session, "voice entry must not create a scene");
+            _panel.Press("Menu");
             _panel.Press("OpenSaved");
             Assert.IsNull(_app.Session);
             yield return null;

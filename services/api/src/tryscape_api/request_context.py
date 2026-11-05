@@ -32,9 +32,11 @@ def _validated_request_id(raw: bytes | None) -> str:
 class RequestContextMiddleware:
     """Assigns a validated request ID, enforces a JSON body limit before parsing, and logs metadata only."""
 
-    def __init__(self, app: ASGIApp, json_body_limit_bytes: int) -> None:
+    def __init__(self, app: ASGIApp, json_body_limit_bytes: int, path_limits: dict[str, int] | None = None) -> None:
         self._app = app
         self._limit = json_body_limit_bytes
+        # Exact-path overrides, e.g. the raw-audio transcription route (S13.3: 512 KiB including headers).
+        self._path_limits = dict(path_limits or {})
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
         if scope["type"] != "http":
@@ -57,9 +59,10 @@ class RequestContextMiddleware:
                 ]
             await send(message)
 
+        limit = self._path_limits.get(str(scope.get("path", "")), self._limit)
         try:
             declared = headers.get(b"content-length")
-            if declared is not None and (not declared.isdigit() or int(declared) > self._limit):
+            if declared is not None and (not declared.isdigit() or int(declared) > limit):
                 await self._reject_too_large(send_with_id, request_id)
                 return
 
@@ -70,7 +73,7 @@ class RequestContextMiddleware:
                 message = await receive()
                 if message["type"] == "http.request":
                     received += len(message.get("body", b""))
-                    if received > self._limit:
+                    if received > limit:
                         raise _BodyTooLarge
                 return message
 

@@ -281,6 +281,33 @@ namespace Tryscape.Infrastructure.Json
             return true;
         }
 
+        public const string TranscriptionKind = "transcription";
+
+        /// <summary>
+        /// Transcription result (api.schema.json#/$defs/transcription_result). Text may be empty (silence) and is at most
+        /// 2000 characters; control characters other than whitespace are rejected.
+        /// </summary>
+        public static bool TryReadTranscription(JToken result, out string text, out string providerId)
+        {
+            text = null;
+            providerId = null;
+            var r = new ShapeReader();
+            var o = r.Object(result, "", "text", "locale", "provider_id");
+            if (o == null)
+                return false;
+            var t = r.String(o, "text", "");
+            r.Enum(o, "locale", "", "en");
+            var p = r.Slug(o, "provider_id", "");
+            if (r.HasErrors || t == null || p == null || t.Length > SceneProposal.MaxTranscriptChars)
+                return false;
+            foreach (var c in t)
+                if ((c < ' ' && c != '\n' && c != '\t' && c != '\r') || c == '\u007f')
+                    return false;
+            text = t;
+            providerId = p;
+            return true;
+        }
+
         /// <summary>Error envelope code (S13.3), or null if the body is not a valid envelope.</summary>
         public static string ErrorCode(string json)
         {

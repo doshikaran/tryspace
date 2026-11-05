@@ -41,6 +41,7 @@ namespace Tryscape.Tests.PlayMode.Acceptance
             "WidthMinus", "WidthMinusFine", "WidthPlusFine", "WidthPlus", "DepthMinus", "DepthMinusFine", "DepthPlusFine", "DepthPlus",
             "ObstructionCenter", "ObstructionSouth", "RouteDirect", "RouteNorth", "ConfirmCreate", "BackToWelcome",
             "Rotate", "ToggleRoute", "Undo", "Redo", "Reset", "ZoomOut", "ZoomIn", "Recenter", "Menu", "Rehearse", "PlayPause", "Details",
+            "VoiceAllow", "VoiceStop", "VoiceCancel", "VoiceRetry", "VoiceTypeInstead", "VoiceHands", "VoiceBack", "EditTranscript",
         };
 
         public GameObject Root;
@@ -78,7 +79,9 @@ namespace Tryscape.Tests.PlayMode.Acceptance
             }).ToArray();
             var reviewCard = new GameObject("ReviewCard", typeof(RectTransform), typeof(UnityEngine.UI.Text)).GetComponent<UnityEngine.UI.Text>();
             reviewCard.transform.SetParent(panelGo.transform, false);
-            Panel.Configure(null, null, null, null, null, null, buttons, null, null, null, reviewCard);
+            var voiceCard = new GameObject("VoiceCard", typeof(RectTransform), typeof(UnityEngine.UI.Text)).GetComponent<UnityEngine.UI.Text>();
+            voiceCard.transform.SetParent(panelGo.transform, false);
+            Panel.Configure(null, null, null, null, null, null, buttons, null, null, null, reviewCard, null, null, voiceCard);
 
             var appGo = new GameObject("App");
             appGo.transform.SetParent(Root.transform, false);
