@@ -62,6 +62,26 @@ REQUIRED_GATES: dict[int, set[str]] = {
         "P2-backend-intent-extraction",
         "P2-devagent-token-rotated",
     },
+    3: {
+        "P3-interpretation-cases",
+        "P3-proposal-validation",
+        "P3-job-api-isolation-cancellation",
+        "P3-late-result-rejection",
+        "P3-transactional-replacement",
+        "P3-hands-only-alternative",
+        "P3-typed-pipeline-local-backend",
+        "P3-regressions",
+        "P3-android-build-healthy",
+        "P3-no-secret-in-apk",
+        "P3-asr-human-speech-mac",
+        "P3-model-assisted-intent",
+        "P3-deployed-backend-reachable",
+        "P3-voice-capture-and-transcription-route",
+        "P3-voice-benchmark-deployed",
+        "P3-manual-simulator-walkthrough",
+        "P3-quest-device",
+        "P3-devagent-token-rotated",
+    },
 }
 
 

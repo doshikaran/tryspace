@@ -4,7 +4,7 @@
 
 Tryscape turns a described situation into an interactive spatial rehearsal. Voice creates the initial environment through a Python AI backend; after that, hands do the editing, rehearsal, replay and comparison. The reference scenario, Moving Day, is **provisional**.
 
-> **Status:** M0 baseline, the Phase 1 hands-only editing slice and the Phase 2 route evaluator/replay/explanation are implemented and automated-verified. Voice creation (provider decision deferred), comparison, saving and on-headset validation are **not** done. See [docs/progress.md](docs/progress.md).
+> **Status:** M0 baseline, the Phase 1 hands-only editing slice, the Phase 2 route evaluator/replay/explanation, and the Phase 3 typed-transcript creation pipeline (backend proposal jobs, review, hand correction, staged build) are implemented and automated-verified. Phase 3 uses **typed development input** and a **deterministic rule-based interpreter**, not voice or an AI model. Voice capture, model-assisted interpretation and deployment (provider decision deferred), comparison, saving and on-headset validation are **not** done. See [docs/progress.md](docs/progress.md).
 
 ## Layout
 
@@ -12,9 +12,9 @@ Tryscape turns a described situation into an interactive spatial rehearsal. Voic
 | --- | --- | --- |
 | `docs/` | Specs ([technical](docs/technical-spec.md), [demo scope](docs/demo-scope.md)), progress, environment records | Present |
 | `contracts/v1/` | JSON Schemas and shared fixtures | Present |
-| `scripts/` | `check_contracts.py`, `check_release.py` | Present |
-| `services/api/` | R0 creation backend (FastAPI/PostgreSQL) | Baseline only |
-| `app-unity/` | Unity 6000.6.8f1 client (URP, OpenXR 1.17.1, Meta XR 207.0.1) | Phase 2 slice |
+| `scripts/` | `check_contracts.py`, `check_release.py`, `unity_batch.sh`, `asr_spike.py`, `scan_build_secrets.py`, `check_devagent_rotation.py` | Present |
+| `services/api/` | R0 creation backend (FastAPI/PostgreSQL): sessions, scene-proposal jobs, worker | Local only; not deployed |
+| `app-unity/` | Unity 6000.6.8f1 client (URP, OpenXR 1.17.1, Meta XR 207.0.1) | Phase 3 slice |
 | `artifacts/` | Local logs and builds (git-ignored) | Generated |
 
 ## Verified commands (macOS, Apple Silicon)
@@ -27,6 +27,13 @@ python3 scripts/check_release.py --phase 0      # gate report; exits 1 while gat
 
 cd services/api                                  # backend; see services/api/README.md
 uv sync --frozen && uv run ruff check . && uv run ruff format --check . && uv run mypy src && uv run pytest -q
+
+# Local service (developer only; two processes, PostgreSQL running)
+export TRYSCAPE_ENV=development TRYSCAPE_DATABASE_URL=postgresql+psycopg://localhost/tryscape_dev
+createdb tryscape_dev; uv run alembic upgrade head          # once
+uv run uvicorn tryscape_api.main:app --host 127.0.0.1 --port 8000
+uv run python -m tryscape_api.worker                         # second terminal
+adb reverse tcp:8000 tcp:8000                                # Quest dev build reaches the Mac without a LAN address
 ```
 
 ### Unity (verified on macOS Apple Silicon; see `docs/environment/m0-environment.md` for machine fixes)
@@ -43,13 +50,17 @@ scripts/unity_batch.sh scene-build "Bootstrap scene written" -- -batchmode -quit
 
 # tests: judged from the result XML, never from log text
 scripts/unity_batch.sh editmode "Saving results to" --artifact "$PWD/artifacts/unity/editmode.xml" -- -batchmode -projectPath "$PWD/app-unity" -runTests -testPlatform EditMode -testResults "$PWD/artifacts/unity/editmode.xml"
-python3 scripts/check_test_results.py artifacts/unity/editmode.xml --min-tests 122 --no-skips
+python3 scripts/check_test_results.py artifacts/unity/editmode.xml --min-tests 149 --no-skips
 scripts/unity_batch.sh playmode "Saving results to" --artifact "$PWD/artifacts/unity/playmode.xml" -- -batchmode -projectPath "$PWD/app-unity" -runTests -testPlatform PlayMode -testCategory Experience -testResults "$PWD/artifacts/unity/playmode.xml"
-python3 scripts/check_test_results.py artifacts/unity/playmode.xml --min-tests 16 --no-skips
+python3 scripts/check_test_results.py artifacts/unity/playmode.xml --min-tests 29 --no-skips
+# with the local service running: live round trip through Unity's HTTP adapter
+scripts/unity_batch.sh playmode-backend "Saving results to" --artifact "$PWD/artifacts/unity/playmode-backend.xml" -- -batchmode -projectPath "$PWD/app-unity" -runTests -testPlatform PlayMode -testCategory Backend -testResults "$PWD/artifacts/unity/playmode-backend.xml"
 scripts/run_xrsim_smoke.sh          # Meta XR Simulator runtime; needs the Interaction SDK example scenes imported
 
 # Android ARM64 development APK + manifest (artifacts/builds/)
 scripts/unity_batch.sh android "Build result=Succeeded" --artifact "$PWD/artifacts/builds/tryscape-dev.apk" --artifact "$PWD/artifacts/builds/tryscape-dev.apk.manifest.json" -- -batchmode -quit -projectPath "$PWD/app-unity" -buildTarget Android -executeMethod Tryscape.Editor.BuildCli.BuildAndroid
+# non-development APK (debug keystore): add -tryscapeRelease and use tryscape-release.apk paths; then
+python3 scripts/scan_build_secrets.py artifacts/builds/tryscape-dev.apk artifacts/builds/tryscape-release.apk   # counts only
 ```
 
 Close any Unity Editor that has `app-unity` open before running batch commands.

@@ -60,3 +60,13 @@ Local databases created on the Homebrew server: `tryscape_dev` plus test databas
 - Meta XR Simulator (macOS, Apple Silicon): https://developers.meta.com/vr/documentation/unity/unity-simulate-xrsim/
 - Unity 6 release support: https://unity.com/releases/unity-6/support and https://discussions.unity.com/t/unity-6-6-is-now-available/1735357
 - Unity 6.3 requirements and Android dependencies: https://docs.unity.com/en-us/engine/6000.3/manual/get-started/install-and-upgrade/getting-started-installing-unity/system-requirements, https://docs.unity3d.com/Manual/android-supported-dependency-versions.html
+
+## Phase 3 additions (5 November 2026)
+
+| Item | Record |
+| --- | --- |
+| Speech spike runtime | whisper.cpp v1.9.5, commit `d1be6fde11ac6e0407606b4e42fe72d34add8037`, MIT. Built with CMake 4.4.5 and Apple clang 21 (`-DCMAKE_BUILD_TYPE=Release -DBUILD_SHARED_LIBS=OFF`) in `~/.cache/tryscape/whisper.cpp` (outside git). |
+| Speech models | `ggml-tiny.en.bin` sha256 `921e4cf8…920b1f`, `ggml-base.en.bin` sha256 `a03779c8…d6c002` (OpenAI Whisper weights, MIT), in `~/.cache/tryscape/models` (outside git). |
+| Insecure HTTP | `PlayerSettings.insecureHttpOption = DevelopmentOnly` (checked by `VerifyBatch`). Development builds reach the Mac's API through `adb reverse tcp:8000 tcp:8000`; release builds have no creation endpoint. |
+| Non-development APK | `-tryscapeRelease` is debug-keystore signed, because there is no release keystore. Its `boot.config` has no `player-connection-*` keys and 0 hits for this Mac's LAN address; development APKs keep `player-connection-ip`. The release build exited 134 after a successful build (`success_with_shutdown_abort`). |
+| DevAgent token | Still not regenerated. Verify after rotation with `python3 scripts/check_devagent_rotation.py` (PASS/FAIL only). |

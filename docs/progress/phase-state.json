@@ -1,9 +1,9 @@
 {
   "schema_version": "1.0.0",
-  "current_phase": 2,
+  "current_phase": 3,
   "status": "blocked",
-  "input_commit": "1a53ddd",
-  "integration_commit": "05ac0f6",
+  "input_commit": "b7cd769",
+  "integration_commit": "7bb7c32",
   "worker_runs": {
     "A": {
       "status": "not_run",
@@ -211,7 +211,7 @@
       "command_or_procedure": "Record exact backend/model deployment configuration or the concrete blocker",
       "environment": "n/a",
       "evidence_path": "docs/progress.md",
-      "evidence_sha256": "b2ce8766342948adfcaa1fd287971b8dc1ab0416ac7f831e14e188a36a081877",
+      "evidence_sha256": "11726963b517dbe4a65b50653df83f65390c732b5f4433a5ced91c65e0d1c70f",
       "notes": "Recorded as blocked (P0-model-access-deployment). Phase 1 workstream C (recording upload, ASR jobs) not started for that reason."
     },
     {
@@ -367,6 +367,215 @@
       "evidence_path": null,
       "evidence_sha256": null,
       "notes": "phases.md: may be completed in Phase 2; deferred to Phase 4 with persistence. Immutable run snapshots with scene/revision/evaluator attribution exist in memory (RehearsalSession.History)."
+    },
+    {
+      "id": "P3-interpretation-cases",
+      "phase": 3,
+      "required": true,
+      "status": "pass",
+      "command_or_procedure": "cd services/api && uv run pytest -q tests/test_creation.py",
+      "environment": "MacBook Air Mac17,3, Apple M5 arm64, macOS 26.6 (25G72); Unity 6000.6.8f1; Meta XR Core/Interaction 207.0.1; OpenXR 1.17.1; Meta XR Simulator 207.1.0; PostgreSQL 18; Python 3.12/uv; commit 7bb7c32",
+      "evidence_path": "artifacts/phase-3/backend-checks.txt",
+      "evidence_sha256": "2f01f8f056bbef488a8ff74fced19aa81ef0961df0c9ec18926bcf2a589289a0",
+      "notes": "38 hand-written cases in contracts/v1/fixtures/interpretation/moving_day_cases.json: equivalent phrasing, m/cm/mm, different inputs give different scenes, missing/ambiguous/invalid/unsupported, injection text, answer lines. Interpreter is deterministic_rules (not a model). Clamp mutation caught by 4 tests (backend-mutation-clamp.txt)."
+    },
+    {
+      "id": "P3-proposal-validation",
+      "phase": 3,
+      "required": true,
+      "status": "pass",
+      "command_or_procedure": "pytest (Pydantic + JSON schema) and EditMode CreationJsonTests/MovingDayProposalCheckTests",
+      "environment": "MacBook Air Mac17,3, Apple M5 arm64, macOS 26.6 (25G72); Unity 6000.6.8f1; Meta XR Core/Interaction 207.0.1; OpenXR 1.17.1; Meta XR Simulator 207.1.0; PostgreSQL 18; Python 3.12/uv; commit 7bb7c32",
+      "evidence_path": "artifacts/phase-3/editmode.xml",
+      "evidence_sha256": "01c4b034cb3b5d243659eea9aa4550272ef92eaf3f985768ec78103aecd9b5d8",
+      "notes": "Server validates every proposal against the contract; Unity re-reads strictly and accepts a ready proposal only if it is byte-identical to the pack template's scene for its intent, illustrative, no measurement sources. Pack-check mutation caught by 5 tests (editmode-mutation-a.xml)."
+    },
+    {
+      "id": "P3-job-api-isolation-cancellation",
+      "phase": 3,
+      "required": true,
+      "status": "pass",
+      "command_or_procedure": "cd services/api && uv run pytest -q tests/test_jobs.py",
+      "environment": "MacBook Air Mac17,3, Apple M5 arm64, macOS 26.6 (25G72); Unity 6000.6.8f1; Meta XR Core/Interaction 207.0.1; OpenXR 1.17.1; Meta XR Simulator 207.1.0; PostgreSQL 18; Python 3.12/uv; commit 7bb7c32",
+      "evidence_path": "artifacts/phase-3/backend-checks.txt",
+      "evidence_sha256": "2f01f8f056bbef488a8ff74fced19aa81ef0961df0c9ec18926bcf2a589289a0",
+      "notes": "Session auth, consent header, idempotency (same/different body), per-session limits, owner scoping (404), SKIP LOCKED claims, lease loss, cancel queued/running, deadline expiry, safe provider failure, purge. JSON-null purge bug found by the live run and fixed; mutation caught by 2 tests (backend-mutation-json-null.txt)."
+    },
+    {
+      "id": "P3-late-result-rejection",
+      "phase": 3,
+      "required": true,
+      "status": "pass",
+      "command_or_procedure": "EditMode CreationCoordinatorTests + PlayMode DescriptionCreationTests",
+      "environment": "MacBook Air Mac17,3, Apple M5 arm64, macOS 26.6 (25G72); Unity 6000.6.8f1; Meta XR Core/Interaction 207.0.1; OpenXR 1.17.1; Meta XR Simulator 207.1.0; PostgreSQL 18; Python 3.12/uv; commit 7bb7c32",
+      "evidence_path": "artifacts/phase-3/playmode.xml",
+      "evidence_sha256": "2198957bbf0552db6f09d25a1fba7231dda1a65d07a1d5a5cb95e37dc8b2c714",
+      "notes": "Cancelled, superseded, suspended (focus loss) and scene-replaced operations never reach review or replace a scene, including with a provider that ignores cancellation. Mutation of the SceneReplaced cancel caught by 2 tests (editmode-mutation-b.xml); the redundant generation guard alone was not observable (mutation survived, documented)."
+    },
+    {
+      "id": "P3-transactional-replacement",
+      "phase": 3,
+      "required": true,
+      "status": "pass",
+      "command_or_procedure": "PlayMode DescriptionCreationTests",
+      "environment": "MacBook Air Mac17,3, Apple M5 arm64, macOS 26.6 (25G72); Unity 6000.6.8f1; Meta XR Core/Interaction 207.0.1; OpenXR 1.17.1; Meta XR Simulator 207.1.0; PostgreSQL 18; Python 3.12/uv; commit 7bb7c32",
+      "evidence_path": "artifacts/phase-3/playmode.xml",
+      "evidence_sha256": "2198957bbf0552db6f09d25a1fba7231dda1a65d07a1d5a5cb95e37dc8b2c714",
+      "notes": "Confirm uses staged CommitScene; provider failure, timeout, tampered proposal and unsupported requests leave the current scene and views unchanged; confirmed scenes rehearse with the existing evaluator (F01 11/120, F02 clear 4300 mm)."
+    },
+    {
+      "id": "P3-hands-only-alternative",
+      "phase": 3,
+      "required": true,
+      "status": "pass",
+      "command_or_procedure": "PlayMode HandsOnlySliceTests (16) + HandOnlyCreationStillWorksWithoutAnyService",
+      "environment": "MacBook Air Mac17,3, Apple M5 arm64, macOS 26.6 (25G72); Unity 6000.6.8f1; Meta XR Core/Interaction 207.0.1; OpenXR 1.17.1; Meta XR Simulator 207.1.0; PostgreSQL 18; Python 3.12/uv; commit 7bb7c32",
+      "evidence_path": "artifacts/phase-3/playmode.xml",
+      "evidence_sha256": "2198957bbf0552db6f09d25a1fba7231dda1a65d07a1d5a5cb95e37dc8b2c714",
+      "notes": "Hand creation, editing and rehearsal work with no service configured."
+    },
+    {
+      "id": "P3-typed-pipeline-local-backend",
+      "phase": 3,
+      "required": true,
+      "status": "pass",
+      "command_or_procedure": "uvicorn + python -m tryscape_api.worker on 127.0.0.1:8000; unity_batch.sh playmode-backend-p3 ... -testCategory Backend",
+      "environment": "MacBook Air Mac17,3, Apple M5 arm64, macOS 26.6 (25G72); Unity 6000.6.8f1; Meta XR Core/Interaction 207.0.1; OpenXR 1.17.1; Meta XR Simulator 207.1.0; PostgreSQL 18; Python 3.12/uv; commit 7bb7c32",
+      "evidence_path": "artifacts/phase-3/playmode-backend.xml",
+      "evidence_sha256": "1126fddbf35f50080e84f3fd27387233af033bbf77a5e3e9ab31031e43c8d7ca",
+      "notes": "2/2 through Unity's real UnityWebRequest adapter: 2 sessions, 5 proposal jobs, 5 polls; all jobs succeeded and input purged to SQL NULL. LOCAL developer host only; not a deployment."
+    },
+    {
+      "id": "P3-regressions",
+      "phase": 3,
+      "required": true,
+      "status": "pass",
+      "command_or_procedure": "EditMode 149/149, PlayMode Experience 29/29, XR simulator 2/2, VerifyBatch 0 problems",
+      "environment": "MacBook Air Mac17,3, Apple M5 arm64, macOS 26.6 (25G72); Unity 6000.6.8f1; Meta XR Core/Interaction 207.0.1; OpenXR 1.17.1; Meta XR Simulator 207.1.0; PostgreSQL 18; Python 3.12/uv; commit 7bb7c32",
+      "evidence_path": "artifacts/phase-3/verify-config.json",
+      "evidence_sha256": "9770fd20829663d444b4d02d160e222ed1ba25cf158725a763826d1f6f1ac2cd",
+      "notes": "All clean_success (unity exit 0)."
+    },
+    {
+      "id": "P3-android-build-healthy",
+      "phase": 3,
+      "required": true,
+      "status": "pass",
+      "command_or_procedure": "BuildCli.BuildAndroid (development) and -tryscapeRelease (non-development, debug keystore)",
+      "environment": "MacBook Air Mac17,3, Apple M5 arm64, macOS 26.6 (25G72); Unity 6000.6.8f1; Meta XR Core/Interaction 207.0.1; OpenXR 1.17.1; Meta XR Simulator 207.1.0; PostgreSQL 18; Python 3.12/uv; commit 7bb7c32",
+      "evidence_path": "artifacts/phase-3/apk-release-manifest.json",
+      "evidence_sha256": "d9253ad0b307fa5bef75f299c993764dee743fab7b98f30da096bc737a4e43d9",
+      "notes": "Dev: clean_success, clean tree, sha256 10de57dd..., 123,921,789 B. Non-development: APK fresh but unity exit 134 after the success marker (success_with_shutdown_abort, reported separately); manifest working_tree_dirty=true because docs/progress.md was edited during the build (code = 7bb7c32); sha256 f850502d..., 75,820,132 B. Neither installed on a device."
+    },
+    {
+      "id": "P3-no-secret-in-apk",
+      "phase": 3,
+      "required": true,
+      "status": "pass",
+      "command_or_procedure": "python3 scripts/scan_build_secrets.py <apks>; --git over tree and all objects",
+      "environment": "MacBook Air Mac17,3, Apple M5 arm64, macOS 26.6 (25G72); Unity 6000.6.8f1; Meta XR Core/Interaction 207.0.1; OpenXR 1.17.1; Meta XR Simulator 207.1.0; PostgreSQL 18; Python 3.12/uv; commit 7bb7c32",
+      "evidence_path": "artifacts/phase-3/apk-scan.txt",
+      "evidence_sha256": "6c14071902b4f6245eb7caf03e7610f71116ec88aa61a1549f7cbcdc66d348d5",
+      "notes": "DevAgent token: 0 hits in both APKs, tree and all git objects. Non-development APK: no player-connection keys in boot.config and 0 LAN-address hits. Development APK: LAN address present only as boot.config player-connection-ip (Unity dev-build profiler connection; expected for dev builds, not a credential). No provider keys exist."
+    },
+    {
+      "id": "P3-asr-spike-mac-synthetic",
+      "phase": 3,
+      "required": false,
+      "status": "pass",
+      "command_or_procedure": "uv run --project services/api python scripts/asr_spike.py --source tts",
+      "environment": "MacBook Air Mac17,3, Apple M5 arm64, macOS 26.6 (25G72); Unity 6000.6.8f1; Meta XR Core/Interaction 207.0.1; OpenXR 1.17.1; Meta XR Simulator 207.1.0; PostgreSQL 18; Python 3.12/uv; commit 7bb7c32",
+      "evidence_path": "artifacts/phase-3/asr-spike-mac-tts.json",
+      "evidence_sha256": "882caabc0f16463f9ccb01bc6c19c54896c9189db329527b36d657d6bff86d35",
+      "notes": "whisper.cpp v1.9.5 (d1be6fd), tiny.en 196/198 and base.en 197/198 utterances with correct parameters; latency median 0.16/0.37 s; peak RSS 258/373 MB. SYNTHETIC macOS say voices, not human speech."
+    },
+    {
+      "id": "P3-asr-human-speech-mac",
+      "phase": 3,
+      "required": true,
+      "status": "not_run",
+      "command_or_procedure": "scripts/asr_spike.py --source recordings",
+      "environment": "MacBook Air Mac17,3, Apple M5 arm64, macOS 26.6 (25G72); Unity 6000.6.8f1; Meta XR Core/Interaction 207.0.1; OpenXR 1.17.1; Meta XR Simulator 207.1.0; PostgreSQL 18; Python 3.12/uv; commit 7bb7c32",
+      "evidence_path": null,
+      "evidence_sha256": null,
+      "notes": "Needs human recordings of the 33 cases (procedure in docs/progress.md)."
+    },
+    {
+      "id": "P3-model-assisted-intent",
+      "phase": 3,
+      "required": true,
+      "status": "blocked",
+      "command_or_procedure": "IntentExtractor implementation backed by an approved model",
+      "environment": "MacBook Air Mac17,3, Apple M5 arm64, macOS 26.6 (25G72); Unity 6000.6.8f1; Meta XR Core/Interaction 207.0.1; OpenXR 1.17.1; Meta XR Simulator 207.1.0; PostgreSQL 18; Python 3.12/uv; commit 7bb7c32",
+      "evidence_path": null,
+      "evidence_sha256": null,
+      "notes": "Blocked on B-provider-budget. deterministic_rules is explicitly a development parser and cannot pass this gate."
+    },
+    {
+      "id": "P3-deployed-backend-reachable",
+      "phase": 3,
+      "required": true,
+      "status": "blocked",
+      "command_or_procedure": "Judge-reachable HTTPS deployment of API + worker",
+      "environment": "MacBook Air Mac17,3, Apple M5 arm64, macOS 26.6 (25G72); Unity 6000.6.8f1; Meta XR Core/Interaction 207.0.1; OpenXR 1.17.1; Meta XR Simulator 207.1.0; PostgreSQL 18; Python 3.12/uv; commit 7bb7c32",
+      "evidence_path": null,
+      "evidence_sha256": null,
+      "notes": "Blocked on B-provider-budget (hosting/spending). Release builds have no endpoint."
+    },
+    {
+      "id": "P3-voice-capture-and-transcription-route",
+      "phase": 3,
+      "required": true,
+      "status": "not_run",
+      "command_or_procedure": "Unity 16 kHz mic capture + POST /v1/transcription-jobs",
+      "environment": "MacBook Air Mac17,3, Apple M5 arm64, macOS 26.6 (25G72); Unity 6000.6.8f1; Meta XR Core/Interaction 207.0.1; OpenXR 1.17.1; Meta XR Simulator 207.1.0; PostgreSQL 18; Python 3.12/uv; commit 7bb7c32",
+      "evidence_path": null,
+      "evidence_sha256": null,
+      "notes": "Not implemented. Backend WhisperCppTranscriber + WAV validation exist (tests/test_transcription.py) but no route, no client capture."
+    },
+    {
+      "id": "P3-voice-benchmark-deployed",
+      "phase": 3,
+      "required": true,
+      "status": "blocked",
+      "command_or_procedure": "S10.5: 18/20 utterances, median < 8 s, p95 < 15 s on the deployment",
+      "environment": "MacBook Air Mac17,3, Apple M5 arm64, macOS 26.6 (25G72); Unity 6000.6.8f1; Meta XR Core/Interaction 207.0.1; OpenXR 1.17.1; Meta XR Simulator 207.1.0; PostgreSQL 18; Python 3.12/uv; commit 7bb7c32",
+      "evidence_path": null,
+      "evidence_sha256": null,
+      "notes": "Needs deployment, capture and model."
+    },
+    {
+      "id": "P3-manual-simulator-walkthrough",
+      "phase": 3,
+      "required": true,
+      "status": "not_run",
+      "command_or_procedure": "docs/progress.md steps 1-13",
+      "environment": "MacBook Air Mac17,3, Apple M5 arm64, macOS 26.6 (25G72); Unity 6000.6.8f1; Meta XR Core/Interaction 207.0.1; OpenXR 1.17.1; Meta XR Simulator 207.1.0; PostgreSQL 18; Python 3.12/uv; commit 7bb7c32",
+      "evidence_path": null,
+      "evidence_sha256": null,
+      "notes": "Needs a person at the Editor + XR Simulator."
+    },
+    {
+      "id": "P3-quest-device",
+      "phase": 3,
+      "required": true,
+      "status": "not_run",
+      "command_or_procedure": "Install APK on Quest 3/3S; frame rate, tracking, comfort, lifecycle, IL2CPP hash parity, system keyboard for typed input",
+      "environment": "MacBook Air Mac17,3, Apple M5 arm64, macOS 26.6 (25G72); Unity 6000.6.8f1; Meta XR Core/Interaction 207.0.1; OpenXR 1.17.1; Meta XR Simulator 207.1.0; PostgreSQL 18; Python 3.12/uv; commit 7bb7c32",
+      "evidence_path": null,
+      "evidence_sha256": null,
+      "notes": "No device connected."
+    },
+    {
+      "id": "P3-devagent-token-rotated",
+      "phase": 3,
+      "required": true,
+      "status": "blocked",
+      "command_or_procedure": "Regenerate in Editor, start server, python3 scripts/check_devagent_rotation.py",
+      "environment": "MacBook Air Mac17,3, Apple M5 arm64, macOS 26.6 (25G72); Unity 6000.6.8f1; Meta XR Core/Interaction 207.0.1; OpenXR 1.17.1; Meta XR Simulator 207.1.0; PostgreSQL 18; Python 3.12/uv; commit 7bb7c32",
+      "evidence_path": null,
+      "evidence_sha256": null,
+      "notes": "Not rotated. Server not running during this phase (port 48735 closed); no agent-bridge operation performed. EditorPrefs holds no RemoteServer_AccessToken; the exposed value remains in the git-ignored local DevAgentSettings.asset. Revocation unproven."
     }
   ],
   "blockers": [
@@ -374,7 +583,10 @@
       "id": "B-provider-budget",
       "gates": [
         "P0-model-access-deployment",
-        "P2-backend-intent-extraction"
+        "P2-backend-intent-extraction",
+        "P3-model-assisted-intent",
+        "P3-deployed-backend-reachable",
+        "P3-voice-benchmark-deployed"
       ],
       "human_action": "Choose ASR/intent provider(s), hosting and a spending cap (deferred by owner)."
     },
@@ -389,14 +601,16 @@
       "id": "B-manual-simulator",
       "gates": [
         "P1-manual-simulator-walkthrough",
-        "P2-manual-simulator-walkthrough"
+        "P2-manual-simulator-walkthrough",
+        "P3-manual-simulator-walkthrough"
       ],
       "human_action": "Run the documented simulator walkthrough and record the outcome."
     },
     {
       "id": "B-quest-device",
       "gates": [
-        "P1-drag-loss-device"
+        "P1-drag-loss-device",
+        "P3-quest-device"
       ],
       "human_action": "Connect a Quest 3/3S in developer mode for device checks."
     },
@@ -410,11 +624,19 @@
     {
       "id": "B-devagent-token",
       "gates": [
-        "P2-devagent-token-rotated"
+        "P2-devagent-token-rotated",
+        "P3-devagent-token-rotated"
       ],
-      "human_action": "In the Unity Editor open Meta XR AI Tools (Agent Bridge) settings, Remote Agent Server section, press Regenerate next to Access Token and confirm. Then rebuild; the build stripper keeps the new value out of APKs."
+      "human_action": "In the Unity Editor open Meta XR AI Tools (Agent Bridge) settings, Remote Agent Server section, press Regenerate next to Access Token and confirm, then Start the server and run python3 scripts/check_devagent_rotation.py (PASS/FAIL only)."
+    },
+    {
+      "id": "B-human-speech",
+      "gates": [
+        "P3-asr-human-speech-mac"
+      ],
+      "human_action": "Record the 33 spike utterances and run scripts/asr_spike.py --source recordings (docs/progress.md)."
     }
   ],
   "completed_phases": [],
-  "next_action": "Human: manual simulator walkthrough (P1+P2), regenerate the DevAgent token, Quest device checks, provider decision. Agent: Phase 4 attempt comparison + local persistence, or Phase 2 polish (movers, route direction markers) if requested."
+  "next_action": "Human: regenerate + verify DevAgent token; simulator walkthrough steps 1-13; human-speech recordings; provider/budget decision; Quest checks. Agent: /v1/transcription-jobs on a resident whisper-server, then Unity microphone capture, measured end to end."
 }
