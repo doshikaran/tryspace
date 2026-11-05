@@ -2,8 +2,8 @@
   "schema_version": "1.0.0",
   "current_phase": 3,
   "status": "blocked",
-  "input_commit": "b7cd769",
-  "integration_commit": "7bb7c32",
+  "input_commit": "4185fb0",
+  "integration_commit": "bfda97f",
   "worker_runs": {
     "A": {
       "status": "not_run",
@@ -35,7 +35,7 @@
       "command_or_procedure": "Inspect installed tools; record exact versions",
       "environment": "docs/environment/m0-environment.md",
       "evidence_path": "docs/environment/m0-environment.md",
-      "evidence_sha256": "70a115039c681d6d4ee6005b6ca2e9d627d9a08ed9fdd95c0102370fd77ce316",
+      "evidence_sha256": "a217f36ec8c7ec63b2f2718b8b2209c6579a77ec30ac6b1c17c56fe10ff789a2",
       "notes": "Exact editor, packages (lockfile), simulator, Android SDK/NDK/JDK/CMake recorded. Unity 6.6 is a Supported (non-LTS) release: decision D11."
     },
     {
@@ -211,7 +211,7 @@
       "command_or_procedure": "Record exact backend/model deployment configuration or the concrete blocker",
       "environment": "n/a",
       "evidence_path": "docs/progress.md",
-      "evidence_sha256": "11726963b517dbe4a65b50653df83f65390c732b5f4433a5ced91c65e0d1c70f",
+      "evidence_sha256": "f4d17b7a0313f6a3eb2fe78917e4a071214631066d53a458f4cdbdba80391267",
       "notes": "Recorded as blocked (P0-model-access-deployment). Phase 1 workstream C (recording upload, ASR jobs) not started for that reason."
     },
     {
@@ -450,22 +450,22 @@
       "phase": 3,
       "required": true,
       "status": "pass",
-      "command_or_procedure": "EditMode 149/149, PlayMode Experience 29/29, XR simulator 2/2, VerifyBatch 0 problems",
-      "environment": "MacBook Air Mac17,3, Apple M5 arm64, macOS 26.6 (25G72); Unity 6000.6.8f1; Meta XR Core/Interaction 207.0.1; OpenXR 1.17.1; Meta XR Simulator 207.1.0; PostgreSQL 18; Python 3.12/uv; commit 7bb7c32",
-      "evidence_path": "artifacts/phase-3/verify-config.json",
+      "command_or_procedure": "Backend 169, contracts 300, EditMode 170/170, PlayMode 41/41, XR simulator 2/2, VerifyBatch 0 problems",
+      "environment": "MacBook Air Mac17,3, Apple M5 arm64, macOS 26.6 (25G72); Unity 6000.6.8f1; Meta XR Core/Interaction 207.0.1; OpenXR 1.17.1; Meta XR Simulator 207.1.0; PostgreSQL 18; Python 3.12/uv; whisper.cpp v1.9.5 base.en; commit bfda97f",
+      "evidence_path": "artifacts/phase-4/verify-config.json",
       "evidence_sha256": "9770fd20829663d444b4d02d160e222ed1ba25cf158725a763826d1f6f1ac2cd",
-      "notes": "All clean_success (unity exit 0)."
+      "notes": "All clean_success except the scene build (unity exit 134 after work; success_with_shutdown_abort). Mutations: backend audio-retention caught by 3 tests; C# post-transcription obsolete check and focus-loss discard caught by 2 tests (XML; Unity exit 134 masked the test exit code)."
     },
     {
       "id": "P3-android-build-healthy",
       "phase": 3,
       "required": true,
       "status": "pass",
-      "command_or_procedure": "BuildCli.BuildAndroid (development) and -tryscapeRelease (non-development, debug keystore)",
-      "environment": "MacBook Air Mac17,3, Apple M5 arm64, macOS 26.6 (25G72); Unity 6000.6.8f1; Meta XR Core/Interaction 207.0.1; OpenXR 1.17.1; Meta XR Simulator 207.1.0; PostgreSQL 18; Python 3.12/uv; commit 7bb7c32",
-      "evidence_path": "artifacts/phase-3/apk-release-manifest.json",
-      "evidence_sha256": "d9253ad0b307fa5bef75f299c993764dee743fab7b98f30da096bc737a4e43d9",
-      "notes": "Dev: clean_success, clean tree, sha256 10de57dd..., 123,921,789 B. Non-development: APK fresh but unity exit 134 after the success marker (success_with_shutdown_abort, reported separately); manifest working_tree_dirty=true because docs/progress.md was edited during the build (code = 7bb7c32); sha256 f850502d..., 75,820,132 B. Neither installed on a device."
+      "command_or_procedure": "BuildCli.BuildAndroid -tryscapeRelease, then development, from clean bfda97f with no edits during builds",
+      "environment": "MacBook Air Mac17,3, Apple M5 arm64, macOS 26.6 (25G72); Unity 6000.6.8f1; Meta XR Core/Interaction 207.0.1; OpenXR 1.17.1; Meta XR Simulator 207.1.0; PostgreSQL 18; Python 3.12/uv; whisper.cpp v1.9.5 base.en; commit bfda97f",
+      "evidence_path": "artifacts/phase-4/apk-release-manifest.json",
+      "evidence_sha256": "459a3b25d615fdf30376072f0906756cab019aad4fc19dcbe829f50b29d987b4",
+      "notes": "Both unity exit 0 clean_success; working_tree_dirty false; release sha256 b98385be..., dev 68825de4.... The earlier 7bb7c32 release exit 134 was a post-success teardown abort (log in artifacts/phase-4/build-134/); it did not reproduce. Neither APK has been installed or run on a device."
     },
     {
       "id": "P3-no-secret-in-apk",
@@ -473,10 +473,10 @@
       "required": true,
       "status": "pass",
       "command_or_procedure": "python3 scripts/scan_build_secrets.py <apks>; --git over tree and all objects",
-      "environment": "MacBook Air Mac17,3, Apple M5 arm64, macOS 26.6 (25G72); Unity 6000.6.8f1; Meta XR Core/Interaction 207.0.1; OpenXR 1.17.1; Meta XR Simulator 207.1.0; PostgreSQL 18; Python 3.12/uv; commit 7bb7c32",
-      "evidence_path": "artifacts/phase-3/apk-scan.txt",
+      "environment": "MacBook Air Mac17,3, Apple M5 arm64, macOS 26.6 (25G72); Unity 6000.6.8f1; Meta XR Core/Interaction 207.0.1; OpenXR 1.17.1; Meta XR Simulator 207.1.0; PostgreSQL 18; Python 3.12/uv; whisper.cpp v1.9.5 base.en; commit bfda97f",
+      "evidence_path": "artifacts/phase-4/apk-scan.txt",
       "evidence_sha256": "6c14071902b4f6245eb7caf03e7610f71116ec88aa61a1549f7cbcdc66d348d5",
-      "notes": "DevAgent token: 0 hits in both APKs, tree and all git objects. Non-development APK: no player-connection keys in boot.config and 0 LAN-address hits. Development APK: LAN address present only as boot.config player-connection-ip (Unity dev-build profiler connection; expected for dev builds, not a credential). No provider keys exist."
+      "notes": "DevAgent token 0 hits in both APKs, tree and all git objects. Release: no player-connection keys, 0 LAN-address hits, not debuggable. Dev: LAN address only as boot.config player-connection-ip (expected for development builds). Both declare RECORD_AUDIO (apk-permissions.txt)."
     },
     {
       "id": "P3-asr-spike-mac-synthetic",
@@ -495,10 +495,10 @@
       "required": true,
       "status": "not_run",
       "command_or_procedure": "scripts/asr_spike.py --source recordings",
-      "environment": "MacBook Air Mac17,3, Apple M5 arm64, macOS 26.6 (25G72); Unity 6000.6.8f1; Meta XR Core/Interaction 207.0.1; OpenXR 1.17.1; Meta XR Simulator 207.1.0; PostgreSQL 18; Python 3.12/uv; commit 7bb7c32",
+      "environment": "MacBook Air Mac17,3, Apple M5 arm64, macOS 26.6 (25G72); Unity 6000.6.8f1; Meta XR Core/Interaction 207.0.1; OpenXR 1.17.1; Meta XR Simulator 207.1.0; PostgreSQL 18; Python 3.12/uv; whisper.cpp v1.9.5 base.en; commit bfda97f",
       "evidence_path": null,
       "evidence_sha256": null,
-      "notes": "Needs human recordings of the 33 cases (procedure in docs/progress.md)."
+      "notes": "Still not run: no human recordings available. Live and loopback runs used synthetic speech only."
     },
     {
       "id": "P3-model-assisted-intent",
@@ -526,12 +526,12 @@
       "id": "P3-voice-capture-and-transcription-route",
       "phase": 3,
       "required": true,
-      "status": "not_run",
-      "command_or_procedure": "Unity 16 kHz mic capture + POST /v1/transcription-jobs",
-      "environment": "MacBook Air Mac17,3, Apple M5 arm64, macOS 26.6 (25G72); Unity 6000.6.8f1; Meta XR Core/Interaction 207.0.1; OpenXR 1.17.1; Meta XR Simulator 207.1.0; PostgreSQL 18; Python 3.12/uv; commit 7bb7c32",
-      "evidence_path": null,
-      "evidence_sha256": null,
-      "notes": "Not implemented. Backend WhisperCppTranscriber + WAV validation exist (tests/test_transcription.py) but no route, no client capture."
+      "status": "pass",
+      "command_or_procedure": "POST /v1/transcription-jobs + worker whisper.cpp; Unity VoiceRecorder/UnityMicrophone/BackendTranscriptionProvider; -testCategory BackendVoice and MicrophoneLoopback with the local service",
+      "environment": "MacBook Air Mac17,3, Apple M5 arm64, macOS 26.6 (25G72); Unity 6000.6.8f1; Meta XR Core/Interaction 207.0.1; OpenXR 1.17.1; Meta XR Simulator 207.1.0; PostgreSQL 18; Python 3.12/uv; whisper.cpp v1.9.5 base.en; commit bfda97f",
+      "evidence_path": "artifacts/phase-4/playmode-live-voice.xml",
+      "evidence_sha256": "ff9c75e9632b55925410b146d0d138b5d31a0950e4d552afc72d5eeeec6f1a84",
+      "notes": "Implemented and verified on the developer Mac only: 3 spoken requests through Unity's real HTTP adapters, local API/worker and whisper.cpp base.en reached review with the expected parameters (6x5/center/direct confirmed and rehearsed 11/120; 7x6/south/north; unsupported). Real MacBook microphone loopback 1/1 (playmode-mic-loopback.xml). Speech was SYNTHETIC (macOS say). Local host, not a deployment. Quest capture not verified (P3-quest-device)."
     },
     {
       "id": "P3-voice-benchmark-deployed",
@@ -572,10 +572,21 @@
       "required": true,
       "status": "blocked",
       "command_or_procedure": "Regenerate in Editor, start server, python3 scripts/check_devagent_rotation.py",
-      "environment": "MacBook Air Mac17,3, Apple M5 arm64, macOS 26.6 (25G72); Unity 6000.6.8f1; Meta XR Core/Interaction 207.0.1; OpenXR 1.17.1; Meta XR Simulator 207.1.0; PostgreSQL 18; Python 3.12/uv; commit 7bb7c32",
+      "environment": "MacBook Air Mac17,3, Apple M5 arm64, macOS 26.6 (25G72); Unity 6000.6.8f1; Meta XR Core/Interaction 207.0.1; OpenXR 1.17.1; Meta XR Simulator 207.1.0; PostgreSQL 18; Python 3.12/uv; whisper.cpp v1.9.5 base.en; commit bfda97f",
       "evidence_path": null,
       "evidence_sha256": null,
-      "notes": "Not rotated. Server not running during this phase (port 48735 closed); no agent-bridge operation performed. EditorPrefs holds no RemoteServer_AccessToken; the exposed value remains in the git-ignored local DevAgentSettings.asset. Revocation unproven."
+      "notes": "Not rotated. Agent bridge not started or contacted this phase. Port 48735 not listening; no RemoteServer_AccessToken key in EditorPrefs. Rotation check UNAVAILABLE (not evidence of rejection)."
+    },
+    {
+      "id": "P3-microphone-loopback-mac",
+      "phase": 3,
+      "required": false,
+      "status": "pass",
+      "command_or_procedure": "-testCategory MicrophoneLoopback (afplay through speakers, UnityMicrophone capture, local service)",
+      "environment": "MacBook Air Mac17,3, Apple M5 arm64, macOS 26.6 (25G72); Unity 6000.6.8f1; Meta XR Core/Interaction 207.0.1; OpenXR 1.17.1; Meta XR Simulator 207.1.0; PostgreSQL 18; Python 3.12/uv; whisper.cpp v1.9.5 base.en; commit bfda97f",
+      "evidence_path": "artifacts/phase-4/playmode-mic-loopback.xml",
+      "evidence_sha256": "e81718833e1a6a28ffe8869057943c26cf4e0576c38b31cb31a20c9395c1b651",
+      "notes": "Real Mac microphone capture of SYNTHETIC speech replayed acoustically; transcribed and reviewed as a 6 m room. Not human speech, not Quest."
     }
   ],
   "blockers": [
@@ -638,5 +649,5 @@
     }
   ],
   "completed_phases": [],
-  "next_action": "Human: regenerate + verify DevAgent token; simulator walkthrough steps 1-13; human-speech recordings; provider/budget decision; Quest checks. Agent: /v1/transcription-jobs on a resident whisper-server, then Unity microphone capture, measured end to end."
+  "next_action": "Human: human speech recordings for scripts/asr_spike.py; Quest install with adb reverse and one spoken creation; simulator walkthrough steps 1-14; regenerate DevAgent token; provider/hosting/budget decision. Agent: run the human-speech spike once recordings exist; device-side frame-time measurement during capture."
 }

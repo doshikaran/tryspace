@@ -1,15 +1,15 @@
 # Tryscape progress
 
-Last updated: 5 November 2026 · Integration commit `7bb7c32` · Authoritative gate state: [`docs/progress/phase-state.json`](progress/phase-state.json) (`python3 scripts/check_release.py --phase 0` … `3`).
+Last updated: 5 November 2026 · Integration commit `bfda97f` · Authoritative gate state: [`docs/progress/phase-state.json`](progress/phase-state.json) (`python3 scripts/check_release.py --phase 0` … `3`).
 
 | Phase | Status | Open gates |
 | --- | --- | --- |
 | 0 / M0 baseline | **Technical baseline complete; phase blocked** on owner/human items | second-contributor repeat, worker-isolation decision, model/provider + deployment (deferred by owner) |
 | 1 hand-driven slice | **Implemented and automated-verified; phase blocked** on manual/device checks | manual simulator walkthrough, Quest lost-tracking check (AC12) |
 | 2 evaluation, replay, explanation | **Evaluator, replay, explanation and stale result implemented and automated-verified; phase blocked** | manual simulator walkthrough, backend intent extraction (provider decision), DevAgent token regeneration |
-| 3 creation flow | **Typed-transcript → proposal → hand review → staged build → rehearsal implemented and automated-verified, including against a live local backend; phase blocked** | model-assisted interpreter and deployment (provider decision), transcription route and microphone capture, voice benchmark, human-speech ASR run, DevAgent token, manual and device checks |
+| 3 creation flow | **Speech or typed text → transcription (whisper.cpp) → proposal → hand review → staged build → rehearsal implemented and automated-verified on this Mac against a local service, including real microphone capture (synthetic speech replayed); phase blocked** | model-assisted interpreter and deployment (provider decision), voice benchmark on a deployment, human-speech accuracy, DevAgent token, manual and Quest checks |
 
-Moving Day is still the **provisional** reference pack. Nothing here claims a headset run or voice creation. Phase 3 creation uses **typed development input** and a **deterministic rule-based interpreter** (`deterministic_rules`, not an AI model); see [`phase-3-summary.md`](progress/phase-3-summary.md). Route results are "in this model" (floor footprint only), never a physical guarantee.
+Moving Day is still the **provisional** reference pack. Nothing here claims a headset run or voice creation. Phase 3 creation accepts **speech** (whisper.cpp on a **local developer service, not a judge-accessible deployment**) or typed development input, and interprets it with a **deterministic rule-based interpreter** (`deterministic_rules`, not an AI model); see [`phase-3-summary.md`](progress/phase-3-summary.md) and [`phase-3b-voice-summary.md`](progress/phase-3b-voice-summary.md). Route results are "in this model" (floor footprint only), never a physical guarantee.
 
 ## Implemented and verified
 
@@ -30,6 +30,7 @@ Moving Day is still the **provisional** reference pack. Nothing here claims a he
 | **Rehearsal slice**: Rehearse / Replay / Details, result card (observed / reason / action + scope), OUT OF DATE after edits, 20 Hz logical replay stopping at the modelled contact, contact + blocker highlight | PlayMode Experience 16/16 |
 | `unity_batch.sh`: fresh `--artifact` evidence, `<step>.status.json`, `clean_success` vs `success_with_shutdown_abort` reported separately from Unity's exit code | used for every Phase 2 Unity step |
 | **Creation pipeline (Phase 3)**:<ul><li>backend scene-proposal jobs (session, consent, idempotency, limits, deadlines, cancellation) with a separate SKIP LOCKED worker;</li><li>deterministic interpreter and assembler;</li><li>Unity coordinator, which discards late, superseded or stale results;</li><li>pack check that only accepts the template's own scene;</li><li>review, correct and clarify UI; staged commit.</li></ul> | backend 155 pytest; contracts 300; EditMode 149/149; PlayMode 29/29; live local backend 2/2; 4 mutation checks |
+| **Voice creation (Phase 3b)**:<ul><li>`POST /v1/transcription-jobs`: raw WAV validated before storage; consent, idempotency, ownership, deadlines, cancel; audio in an owner-only temp store, deleted at terminal states;</li><li>Unity `VoiceRecorder` and `UnityMicrophone` (permission, 15 s limit, device loss, focus-loss discard, silence);</li><li>one 30 s budget for transcription plus proposal;</li><li>Describe with voice: notice, Allow, elapsed time, Stop and Cancel; review shows "Spoken input" with Edit transcript.</li></ul> | backend 169; EditMode 170/170; PlayMode 41/41; live spoken requests 1/1 (3 requests); real Mac microphone loopback 1/1; mutation checks 3+2 |
 | **ASR spike**: whisper.cpp v1.9.5 + tiny.en/base.en on this Mac with **synthetic** (macOS `say`) speech: 196/198 and 197/198 utterances with correct parameters. Human speech and Quest not run. | `artifacts/phase-3/asr-spike-mac-tts.json` |
 | Security: Meta DevAgent access token stripped from builds (0 hits in APK, 0 in any git object). **Not yet regenerated.** Dev APKs carry this Mac's LAN IP in `boot.config` (Unity's standard dev-build player connection; not a credential) | APK scan, `git cat-file --batch-all-objects` scan |
 
@@ -61,6 +62,7 @@ Moving Day is still the **provisional** reference pack. Nothing here claims a he
 11. **Phase 3, typed creation.** In a terminal, from `services/api`, start the API and worker (README "Local service"), with PostgreSQL running. In the headset panel: **Menu → Describe (typed, dev input) → Example: 6 x 5 m → Interpret**. The review card should say "Typed development input (not voice)", "rule-based, not an AI model", and show Room 6.0 m x 5.0 m, Console in the way, Direct, and "Check:" lines. Press **Adjust with hands**, change the width, press **Review**, then **Confirm and build**, then **Rehearse**.
 12. **No size given → Interpret**: choose **Use 6 m by 5 m example** (resubmitted) or **Enter dimensions** (hand editor). **Unsupported request → Interpret**: reasons shown, and no build button.
 13. Stop the API, then Interpret again: you should get "not reachable … Create with hands" and the existing scene should be unchanged. Note whether the review card text fits.
+14. **Phase 3b, voice** (service started with `TRYSCAPE_ASR_BINARY`/`TRYSCAPE_ASR_MODEL`, see README): **Describe with voice → Allow and record**, allow the OS microphone prompt, then say "Prepare a six by five metre living room for a sofa delivery. There is a console table in the way." Press **Stop**. The card should show the elapsed time, then Transcribing, then a review with "Spoken input, transcribed by whisper_cpp_base_en". Try **Edit transcript**, **Cancel** while transcribing, and denying the microphone. Report recognition errors.
 
 ## Manual and device checklist (Phase 1–3)
 
@@ -72,8 +74,9 @@ Moving Day is still the **provisional** reference pack. Nothing here claims a he
 | Real hand-interaction usability | not run | headset or simulator with a person; automated button presses do not count |
 | Quest frame rate, tracking, comfort, lifecycle (pause/resume, focus loss) | not run | Quest 3/3S in developer mode |
 | IL2CPP/device canonical hash parity | not run | Quest; compare EditMode hashes with an on-device run |
-| Microphone capture and transcription performance on device | not run | capture not implemented; Quest; deployed or `adb reverse` backend |
-| Human-speech ASR accuracy (Mac) | not run | recordings (procedure above) |
+| Microphone capture and transcription on device (RECORD_AUDIO prompt, deny/revoke, quality, frame time while recording) | not run | Quest; `adb reverse tcp:8000 tcp:8000` to the Mac service |
+| Voice walkthrough with a person on the Mac (step 14) | not run | a person speaking; macOS microphone permission for Unity |
+| Human-speech ASR accuracy (Mac) | not run | recordings (procedure above); every voice run so far used synthetic `say` speech |
 
 ## Known limitations (deliberate, not bugs)
 
@@ -86,9 +89,9 @@ Moving Day is still the **provisional** reference pack. Nothing here claims a he
 ## Next smallest task
 
 Human:
-1. Regenerate the DevAgent token, start the server, and run `python3 scripts/check_devagent_rotation.py`.
-2. Run walkthrough steps 8–13.
-3. Provide human recordings for the ASR spike.
-4. Make the provider and budget decision.
+1. Record 5–10 human utterances (procedure above) and run `scripts/asr_spike.py --source recordings`.
+2. Install the development APK on a Quest, run `adb reverse tcp:8000 tcp:8000`, and do one spoken creation (step 14).
+3. Regenerate the DevAgent token.
+4. Make the provider, hosting and budget decision.
 
-Agent (when directed): a `/v1/transcription-jobs` route on a resident whisper-server, then Unity microphone capture, measured end to end.
+Agent (when directed): score the human recordings, then measure frame time during capture on device.

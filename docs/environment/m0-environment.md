@@ -70,3 +70,11 @@ Local databases created on the Homebrew server: `tryscape_dev` plus test databas
 | Insecure HTTP | `PlayerSettings.insecureHttpOption = DevelopmentOnly` (checked by `VerifyBatch`). Development builds reach the Mac's API through `adb reverse tcp:8000 tcp:8000`; release builds have no creation endpoint. |
 | Non-development APK | `-tryscapeRelease` is debug-keystore signed, because there is no release keystore. Its `boot.config` has no `player-connection-*` keys and 0 hits for this Mac's LAN address; development APKs keep `player-connection-ip`. The release build exited 134 after a successful build (`success_with_shutdown_abort`). |
 | DevAgent token | Still not regenerated. Verify after rotation with `python3 scripts/check_devagent_rotation.py` (PASS/FAIL only). |
+
+## Phase 3b additions (6 November 2026)
+
+| Item | Record |
+| --- | --- |
+| Worker ASR configuration | `TRYSCAPE_ASR_BINARY`, `TRYSCAPE_ASR_MODEL`, `TRYSCAPE_ASR_PROVIDER_ID` (default `whisper_cpp_base_en`), `TRYSCAPE_ASR_THREADS`, `TRYSCAPE_ASR_TIMEOUT_SECONDS`; `TRYSCAPE_AUDIO_DIR` (shared by API and worker; default `<tmp>/tryscape-audio-<uid>`, mode 0700). The local verification server ran with `TRYSCAPE_JOBS_PER_MINUTE_PER_SESSION=20` (default 4). |
+| Unity teardown abort | Exit 134 (`terminate_handler unexpectedly returned`) after successful work recurred on a scene build and an EditMode run; it did not occur on the two Android builds from `bfda97f`. When it follows a failing test run it hides Unity's test-failure exit code, so always judge tests from the XML. |
+| APK permissions | `RECORD_AUDIO`, `MODIFY_AUDIO_SETTINGS` and `BLUETOOTH` are added by Unity for `Microphone` use. |
