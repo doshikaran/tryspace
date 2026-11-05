@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using Tryscape.Application.Creation;
 using Tryscape.Content.MovingDay;
 using UnityEngine;
 using UnityEngine.UI;
@@ -14,8 +15,17 @@ namespace Tryscape.Unity.Experience
     public sealed class PanelController : MonoBehaviour
     {
         public const string VoiceUnavailable =
-            "Voice creation needs the Tryscape creation service, which is not configured in this build. " +
-            "Use 'Create with hands' - it builds the same rehearsal.";
+            "Voice capture is not connected in this build. 'Describe (typed, dev)' tests the same interpretation " +
+            "pipeline with typed text; 'Create with hands' builds the same rehearsal without a service.";
+
+        /// <summary>Development presets: typed transcripts selectable by hand (no keyboard needed). Not speech.</summary>
+        public static readonly string[] PresetTranscripts =
+        {
+            "Prepare a six by five metre living room for a sofa delivery. There is a console table in the way.",
+            "Seven by six metres, sofa delivery, the console is parked south. Take the northern approach.",
+            "Prepare my room for a delivery",
+            "Scan my floor plan PDF and predict where the movers will go",
+        };
 
         public const string SavedUnavailable = "Saved projects are not available in this build yet.";
 
@@ -31,14 +41,23 @@ namespace Tryscape.Unity.Experience
         [SerializeField] Text _draftSummary;
         [SerializeField] Text _sceneSummary;
         [SerializeField] Text _resultCard;
+        [SerializeField] GameObject _describeSection;
+        [SerializeField] GameObject _reviewSection;
+        [SerializeField] Text _reviewCard;
+        [SerializeField] InputField _transcriptInput;
         [SerializeField] List<Button> _buttons = new List<Button>();
 
         TryscapeApp _app;
         readonly Dictionary<string, Button> _byName = new Dictionary<string, Button>(StringComparer.Ordinal);
 
         public void Configure(GameObject welcome, GameObject create, GameObject edit, Text status, Text draftSummary,
-            Text sceneSummary, IEnumerable<Button> buttons, Text resultCard = null)
+            Text sceneSummary, IEnumerable<Button> buttons, Text resultCard = null, GameObject describe = null,
+            GameObject review = null, Text reviewCard = null, InputField transcriptInput = null)
         {
+            _describeSection = describe;
+            _reviewSection = review;
+            _reviewCard = reviewCard;
+            _transcriptInput = transcriptInput;
             _resultCard = resultCard;
             _welcomeSection = welcome;
             _createSection = create;
@@ -62,6 +81,8 @@ namespace Tryscape.Unity.Experience
                 button.onClick.AddListener(() => Press(id));
             }
             _app.StateChanged += Refresh;
+            if (_transcriptInput != null)
+                _transcriptInput.onValueChanged.AddListener(OnTranscriptEdited);
             Refresh();
         }
 
@@ -69,6 +90,14 @@ namespace Tryscape.Unity.Experience
         {
             if (_app != null)
                 _app.StateChanged -= Refresh;
+            if (_transcriptInput != null)
+                _transcriptInput.onValueChanged.RemoveListener(OnTranscriptEdited);
+        }
+
+        void OnTranscriptEdited(string text)
+        {
+            if (_app != null && text != _app.TypedTranscript)
+                _app.SetTypedTranscript(text);
         }
 
         /// <summary>Dispatch by button ID. Public so PlayMode tests exercise the same path as a hand press.</summary>
@@ -93,7 +122,33 @@ namespace Tryscape.Unity.Experience
                 case "RouteDirect": _app.SetDraftRoute(MovingDayPack.DirectRouteId); break;
                 case "RouteNorth": _app.SetDraftRoute(MovingDayPack.NorthRouteId); break;
                 case "ConfirmCreate": _app.ConfirmCreation(); break;
-                case "BackToWelcome": _app.ShowWelcome(); break;
+                case "BackToWelcome":
+                    if (_app.Mode == AppMode.CorrectingProposal) _app.BackToProposalReview();
+                    else _app.ShowWelcome();
+                    break;
+                case "DescribeTyped": _app.BeginTypedDescription(); break;
+                case "DescribeBack":
+                case "ReviewMenu":
+                    _app.ShowWelcome();
+                    break;
+                case "Preset0":
+                case "Preset1":
+                case "Preset2":
+                case "Preset3":
+                    _app.SetTypedTranscript(PresetTranscripts[id[id.Length - 1] - '0']);
+                    break;
+                case "SubmitTranscript": _app.SubmitTranscript(); break;
+                case "CancelProposal": _app.CancelProposal(); break;
+                case "Choice0":
+                case "Choice1":
+                case "Choice2":
+                case "Choice3":
+                    _app.ChooseClarification(id[id.Length - 1] - '0');
+                    break;
+                case "ConfirmProposal": _app.ConfirmProposal(); break;
+                case "AdjustProposal": _app.BeginProposalCorrection(); break;
+                case "DescribeAgain": _app.BeginTypedDescription(); break;
+                case "ReviewHands": _app.BeginHandCreation(); break;
                 case "Rotate": _app.RotateSelected(); break;
                 case "ToggleRoute": _app.ToggleRoute(); break;
                 case "Undo": _app.Undo(); break;
@@ -125,7 +180,9 @@ namespace Tryscape.Unity.Experience
                 return;
             var mode = _app.Mode;
             SetActive(_welcomeSection, mode == AppMode.Welcome);
-            SetActive(_createSection, mode == AppMode.CreatingWithHands);
+            SetActive(_createSection, mode == AppMode.CreatingWithHands || mode == AppMode.CorrectingProposal);
+            SetActive(_describeSection, mode == AppMode.DescribingTyped);
+            SetActive(_reviewSection, mode == AppMode.ReviewingProposal);
             SetActive(_editSection, mode == AppMode.Editing);
             if (_status != null)
                 _status.text = _app.Status;
@@ -136,7 +193,12 @@ namespace Tryscape.Unity.Experience
                     $"Room {d.RoomWidthMm / 1000.0:0.0} m wide x {d.RoomDepthMm / 1000.0:0.0} m deep (5-8 m)\n" +
                     $"Console: {(d.Obstruction == ObstructionState.Center ? "in the way" : "parked south")}  |  " +
                     $"Route: {(d.RouteId == MovingDayPack.DirectRouteId ? "Direct" : "Northern")}\n" +
-                    "Example environment - not measurements of your home.";
+                    (mode == AppMode.CorrectingProposal
+                        ? "From your description, corrected by hand - illustrative, not measurements."
+                        : "Example environment - not measurements of your home.");
+            SetLabel("ConfirmCreate", mode == AppMode.CorrectingProposal ? "Confirm and build" : "Create example room");
+            SetLabel("BackToWelcome", mode == AppMode.CorrectingProposal ? "Review" : "Back");
+            RefreshCreation(mode);
 
             var session = _app.Session;
             if (_sceneSummary != null)
@@ -160,6 +222,41 @@ namespace Tryscape.Unity.Experience
             SetInteractable("DepthMinusFine", d.RoomDepthMm > 5000);
             SetInteractable("DepthPlus", d.RoomDepthMm < 8000);
             SetInteractable("DepthPlusFine", d.RoomDepthMm < 8000);
+        }
+
+        void RefreshCreation(AppMode mode)
+        {
+            var creation = _app.Creation;
+            var proposing = creation != null && creation.State == CreationState.Proposing;
+            if (_transcriptInput != null && _transcriptInput.text != _app.TypedTranscript)
+                _transcriptInput.SetTextWithoutNotify(_app.TypedTranscript);
+            SetInteractable("SubmitTranscript", !proposing && !string.IsNullOrWhiteSpace(_app.TypedTranscript));
+            SetInteractable("CancelProposal", proposing);
+            for (var i = 0; i < PresetTranscripts.Length; i++)
+                SetInteractable("Preset" + i, !proposing);
+
+            if (_reviewCard != null)
+                _reviewCard.text = mode == AppMode.ReviewingProposal ? _app.ReviewText : "";
+            var proposal = mode == AppMode.ReviewingProposal ? creation?.Proposal : null;
+            var ready = proposal != null && proposal.Status == ProposalStatus.Ready;
+            var question = proposal != null && proposal.Status == ProposalStatus.NeedsClarification ? proposal.Questions[0] : null;
+            for (var i = 0; i < 4; i++)
+            {
+                var id = "Choice" + i;
+                var visible = question != null && i < question.Choices.Count;
+                SetVisible(id, visible);
+                if (visible)
+                    SetLabel(id, question.Choices[i]);
+            }
+            SetVisible("ConfirmProposal", ready);
+            SetVisible("AdjustProposal", ready);
+            SetVisible("ReviewHands", proposal != null && !ready);
+        }
+
+        void SetVisible(string id, bool visible)
+        {
+            if (_byName.TryGetValue(id, out var button) && button.gameObject.activeSelf != visible)
+                button.gameObject.SetActive(visible);
         }
 
         /// <summary>Current visible label of a button (tests read what a user would read).</summary>

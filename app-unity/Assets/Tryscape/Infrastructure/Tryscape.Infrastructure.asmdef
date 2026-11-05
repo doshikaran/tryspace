@@ -1,12 +1,17 @@
 {
     "name": "Tryscape.Infrastructure",
     "rootNamespace": "Tryscape.Infrastructure",
-    "references": ["Tryscape.Core"],
+    "references": [
+        "Tryscape.Core",
+        "Tryscape.Application"
+    ],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
     "overrideReferences": true,
-    "precompiledReferences": ["Newtonsoft.Json.dll"],
+    "precompiledReferences": [
+        "Newtonsoft.Json.dll"
+    ],
     "autoReferenced": false,
     "defineConstraints": [],
     "versionDefines": [],

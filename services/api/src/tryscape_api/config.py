@@ -25,6 +25,20 @@ class Settings(BaseSettings):
     database_url: SecretStr = Field(description="SQLAlchemy URL using the psycopg driver.")
     session_ttl_seconds: int = Field(default=3600, ge=60, le=3600)
     json_body_limit_bytes: int = Field(default=16 * 1024, ge=1024, le=1024 * 1024)
+    consent_versions: str = Field(
+        default="r0-dev-2026-11",
+        description="Comma-separated processing-notice versions the headset may affirm (X-Processing-Consent-Version).",
+        max_length=512,
+    )
+    job_deadline_seconds: int = Field(default=30, ge=5, le=30)
+    job_result_ttl_seconds: int = Field(default=24 * 3600, ge=60, le=24 * 3600)
+    jobs_per_minute_per_session: int = Field(default=4, ge=1, le=60)
+    worker_lease_seconds: int = Field(default=10, ge=2, le=60)
+    worker_poll_seconds: float = Field(default=0.25, ge=0.05, le=5)
+
+    @property
+    def accepted_consent_versions(self) -> frozenset[str]:
+        return frozenset(v.strip() for v in self.consent_versions.split(",") if v.strip())
 
     @field_validator("database_url")
     @classmethod

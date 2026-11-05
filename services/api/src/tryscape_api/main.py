@@ -1,7 +1,8 @@
 """FastAPI application factory and ASGI entry point (`tryscape_api.main:app`).
 
-Implemented R0 routes: health (live/ready) and anonymous sessions. Creation job routes are implemented only once a
-real ASR/intent provider is selected; no placeholder success endpoints are exposed (technical-spec S13.2).
+Implemented R0 routes: health (live/ready), anonymous sessions, and scene-proposal jobs (create/poll/cancel; executed
+by the separate `tryscape_api.worker` process). The worker's intent extractor is currently the deterministic
+development parser (`deterministic_rules`), not a model; transcription jobs are not exposed yet (technical-spec S13.2).
 """
 
 from __future__ import annotations
@@ -20,6 +21,7 @@ from starlette.types import ASGIApp
 from tryscape_api import strict_json
 from tryscape_api.config import Settings, get_settings
 from tryscape_api.errors import ApiError, ErrorCode, install_error_handlers
+from tryscape_api.jobs import build_router
 from tryscape_api.request_context import RequestContextMiddleware
 from tryscape_api.sessions import issue_session
 
@@ -62,6 +64,7 @@ def create_fastapi(settings: Settings, engine: AsyncEngine | None = None) -> Fas
         openapi_url="/openapi.json" if settings.env.value in ("development", "test") else None,
     )
     install_error_handlers(app)
+    app.include_router(build_router(settings))
 
     @app.get("/health/live")
     async def health_live() -> dict[str, str]:

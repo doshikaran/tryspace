@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Tryscape.Core.Model;
 
 namespace Tryscape.Content.MovingDay
@@ -79,8 +80,26 @@ namespace Tryscape.Content.MovingDay
     /// </summary>
     public static class MovingDayTemplate
     {
-        public static SceneSpec Assemble(MovingDayParameters parameters, IIdGenerator ids)
+        public static SceneSpec Assemble(MovingDayParameters parameters, IIdGenerator ids) =>
+            Assemble(parameters, ids, DefaultAssumptions);
+
+        /// <summary>Hand-template assumptions: an illustrative example, fixed orientation.</summary>
+        public static IReadOnlyList<Assumption> DefaultAssumptions { get; } = new[]
         {
+            new Assumption("illustrative_layout", "Prepared example; dimensions are not measurements of your home.",
+                AssumptionSource.Template, false),
+            UprightAssumption,
+        };
+
+        public static Assumption UprightAssumption => new Assumption("upright_fixed_orientation",
+            "The sofa remains upright at a fixed orientation; lifting and turning are not assessed.",
+            AssumptionSource.ScenarioModel, false);
+
+        /// <summary>Same assembly with caller-supplied assumptions (proposal review and correction).</summary>
+        public static SceneSpec Assemble(MovingDayParameters parameters, IIdGenerator ids, IReadOnlyList<Assumption> assumptions)
+        {
+            if (assumptions == null || assumptions.Count == 0)
+                throw new ArgumentException("A scene needs at least one assumption", nameof(assumptions));
             if (parameters == null)
                 throw new ArgumentNullException(nameof(parameters));
             if (ids == null)
@@ -108,15 +127,6 @@ namespace Tryscape.Content.MovingDay
                 new RouteSpec(MovingDayPack.NorthRouteId, "Northern approach", sofaId, 250,
                     new[] { new Waypoint(1000, 2500), new Waypoint(1000, 4000), new Waypoint(4000, 4000), new Waypoint(4000, 3800) }),
             };
-            var assumptions = new[]
-            {
-                new Assumption("illustrative_layout", "Prepared example; dimensions are not measurements of your home.",
-                    AssumptionSource.Template, false),
-                new Assumption("upright_fixed_orientation",
-                    "The sofa remains upright at a fixed orientation; lifting and turning are not assessed.",
-                    AssumptionSource.ScenarioModel, false),
-            };
-
             return new SceneSpec(sceneId, projectId, MovingDayPack.PackId, MovingDayPack.PackVersion,
                 MovingDayPack.CatalogVersion, 0, new RoomSpec(parameters.RoomWidthMm, parameters.RoomDepthMm),
                 entities, routes, parameters.RouteId, assumptions, Provenance.Illustrative, Array.Empty<MeasurementSource>());

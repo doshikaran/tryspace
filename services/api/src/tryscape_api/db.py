@@ -63,7 +63,9 @@ class Job(Base):
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="queued")
     request_hash: Mapped[bytes] = mapped_column(LargeBinary(32), nullable=False)
     input_ref: Mapped[str | None] = mapped_column(String(128))
-    result: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    # none_as_null: Python None must be SQL NULL (purged), not the JSON value null.
+    input_payload: Mapped[dict[str, Any] | None] = mapped_column(JSONB(none_as_null=True))
+    result: Mapped[dict[str, Any] | None] = mapped_column(JSONB(none_as_null=True))
     error_code: Mapped[str | None] = mapped_column(String(64))
     deadline_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     lease_owner: Mapped[str | None] = mapped_column(String(64))
@@ -81,6 +83,9 @@ class Job(Base):
         CheckConstraint("attempts >= 0 AND attempts <= 5", name="attempts_bounded"),
         CheckConstraint("octet_length(request_hash) = 32", name="request_hash_sha256"),
         CheckConstraint("result IS NULL OR pg_column_size(result) <= 1048576", name="result_bounded"),
+        CheckConstraint(
+            "input_payload IS NULL OR pg_column_size(input_payload) <= 16384", name="input_payload_bounded"
+        ),
         Index("ix_jobs_worker_scan", "status", "lease_expires_at", "created_at"),
         Index("ix_jobs_session_lookup", "session_id", "id"),
     )

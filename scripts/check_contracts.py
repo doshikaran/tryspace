@@ -439,7 +439,7 @@ class Report:
 def fixture_files() -> Iterator[tuple[str, Path]]:
     for path in sorted(FIXTURES.rglob("*.json")):
         rel = path.relative_to(FIXTURES).as_posix()
-        if path.name.startswith("_") or rel.startswith(("evaluation/", "canonical/")):
+        if path.name.startswith("_") or rel.startswith(("evaluation/", "canonical/", "interpretation/")):
             continue  # metadata/expectation files, loaded explicitly below
         yield rel, path
 
@@ -517,6 +517,25 @@ def main() -> int:
                         entities=list(reversed(f01["entities"])), routes=list(reversed(f01["routes"])))
         report.check(scene_hash(shuffled) == built["scene_hashes"]["f01_direct_blocked.json"],
                      "scene hash depends on entity/route array order")
+
+    # Interpretation expectations: structure and contract-valid expected intents (values are checked by backend tests)
+    interp = load_strict(FIXTURES / "interpretation" / "moving_day_cases.json")
+    intent_validator = validator_for(registry, schemas, "scene_proposal.schema.json#/$defs/intent")
+    ids: set[str] = set()
+    for case in interp["cases"]:
+        cid = case.get("id", "?")
+        report.check(cid not in ids, f"interpretation {cid}: duplicate id")
+        ids.add(cid)
+        report.check(0 < len(case.get("transcript", "")) <= 2000, f"interpretation {cid}: transcript length")
+        status = case.get("status")
+        report.check(status in ("ready", "needs_clarification", "unsupported"), f"interpretation {cid}: status")
+        if status == "ready":
+            intent = dict(case.get("intent", {}), scenario_pack_id="moving_day")
+            report.check(not list(intent_validator.iter_errors(intent)), f"interpretation {cid}: intent not contract-valid")
+        elif status == "needs_clarification":
+            report.check(1 <= len(case.get("question_fields", [])) <= 3, f"interpretation {cid}: question fields")
+        else:
+            report.check(bool(case.get("unsupported_codes")), f"interpretation {cid}: unsupported codes")
 
     for failure in report.failures:
         print(f"FAIL {failure}")

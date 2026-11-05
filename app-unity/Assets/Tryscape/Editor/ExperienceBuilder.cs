@@ -176,11 +176,42 @@ namespace Tryscape.Editor
 
             var buttons = new List<Button>();
             var welcome = Section(canvasGo.transform, "Welcome");
-            buttons.Add(Button(welcome, "CreateWithHands", "Create with hands", 0, 160, 440));
-            buttons.Add(Button(welcome, "SpeakSituation", "Speak a situation (unavailable)", 0, 80, 440));
-            buttons.Add(Button(welcome, "OpenSaved", "Open saved (unavailable)", 0, 0, 440));
+            buttons.Add(Button(welcome, "CreateWithHands", "Create with hands", 0, 200, 440));
+            buttons.Add(Button(welcome, "DescribeTyped", "Describe (typed, dev input)", 0, 130, 440));
+            buttons.Add(Button(welcome, "SpeakSituation", "Speak a situation (unavailable)", 0, 60, 440));
+            buttons.Add(Button(welcome, "OpenSaved", "Open saved (unavailable)", 0, -10, 440));
             buttons.Add(Button(welcome, "Help", "Help", 0, -80, 440));
-            buttons.Add(Button(welcome, "ResumeEditing", "Resume editing", 0, -160, 440));
+            buttons.Add(Button(welcome, "ResumeEditing", "Resume editing", 0, -150, 440));
+
+            // Typed development transcript entry. Labelled as development input; this is not voice recognition.
+            var describe = Section(canvasGo.transform, "Describe");
+            var banner = Text(describe, "DevBanner", "DEVELOPMENT INPUT - typed transcript, not voice recognition", 18,
+                FontStyle.Bold, new Vector2(0, 225), new Vector2(520, 30));
+            banner.color = new Color(1f, 0.8f, 0.3f);
+            banner.alignment = TextAnchor.MiddleCenter;
+            var input = TranscriptInput(describe, new Vector2(0, 130), new Vector2(520, 150));
+            buttons.Add(Button(describe, "Preset0", "Example: 6 x 5 m", -130, 20, 250));
+            buttons.Add(Button(describe, "Preset1", "7 x 6 m, parked south", 130, 20, 250));
+            buttons.Add(Button(describe, "Preset2", "No size given", -130, -45, 250));
+            buttons.Add(Button(describe, "Preset3", "Unsupported request", 130, -45, 250));
+            buttons.Add(Button(describe, "SubmitTranscript", "Interpret", -130, -120, 250));
+            buttons.Add(Button(describe, "CancelProposal", "Cancel", 130, -120, 250));
+            buttons.Add(Button(describe, "DescribeBack", "Back", 0, -185, 250));
+
+            // Proposal review: interpretation, assumptions, clarification choices; confirmation is a hand press.
+            var review = Section(canvasGo.transform, "Review");
+            var reviewCard = Text(review, "ReviewCard", "", 18, FontStyle.Normal, new Vector2(0, 140), new Vector2(520, 210));
+            reviewCard.alignment = TextAnchor.UpperLeft;
+            reviewCard.supportRichText = false; // contains untrusted transcript text
+            buttons.Add(Button(review, "Choice0", "Choice", -130, 0, 250));
+            buttons.Add(Button(review, "Choice1", "Choice", 130, 0, 250));
+            buttons.Add(Button(review, "Choice2", "Choice", -130, -65, 250));
+            buttons.Add(Button(review, "Choice3", "Choice", 130, -65, 250));
+            buttons.Add(Button(review, "ConfirmProposal", "Confirm and build", -130, -130, 250));
+            buttons.Add(Button(review, "AdjustProposal", "Adjust with hands", 130, -130, 250));
+            buttons.Add(Button(review, "ReviewHands", "Create with hands", 130, -130, 250));
+            buttons.Add(Button(review, "DescribeAgain", "Describe again", -130, -195, 250));
+            buttons.Add(Button(review, "ReviewMenu", "Menu", 130, -195, 250));
 
             var create = Section(canvasGo.transform, "Create");
             var draft = Text(create, "Draft", "", 20, FontStyle.Normal, new Vector2(0, 175), new Vector2(520, 90));
@@ -222,11 +253,35 @@ namespace Tryscape.Editor
             result.alignment = TextAnchor.UpperLeft;
 
             var controller = canvasGo.AddComponent<PanelController>();
-            controller.Configure(welcome.gameObject, create.gameObject, edit.gameObject, status, draft, scene, buttons, result);
+            controller.Configure(welcome.gameObject, create.gameObject, edit.gameObject, status, draft, scene, buttons, result,
+                describe.gameObject, review.gameObject, reviewCard, input);
 
             var created = QuickActionsAPI.AddRayCanvasInteraction(canvasGo).Concat(QuickActionsAPI.AddPokeCanvasInteraction(canvasGo)).ToList();
             Debug.Log($"[Tryscape] Panel canvas interaction objects created={created.Count}");
             return controller;
+        }
+
+        static InputField TranscriptInput(Transform parent, Vector2 position, Vector2 extent)
+        {
+            var go = new GameObject("TranscriptInput", typeof(RectTransform), typeof(Image), typeof(InputField));
+            go.transform.SetParent(parent, false);
+            var r = go.GetComponent<RectTransform>();
+            r.sizeDelta = extent;
+            r.anchoredPosition = position;
+            go.GetComponent<Image>().color = new Color(0.16f, 0.17f, 0.2f, 1f);
+            var text = Text(go.transform, "Text", "", 18, FontStyle.Normal, Vector2.zero, extent - new Vector2(20, 16));
+            text.alignment = TextAnchor.UpperLeft;
+            text.supportRichText = false;
+            var placeholder = Text(go.transform, "Placeholder", "Type a description, or pick an example below.", 18,
+                FontStyle.Italic, Vector2.zero, extent - new Vector2(20, 16));
+            placeholder.alignment = TextAnchor.UpperLeft;
+            placeholder.color = new Color(1f, 1f, 1f, 0.45f);
+            var field = go.GetComponent<InputField>();
+            field.textComponent = text;
+            field.placeholder = placeholder;
+            field.characterLimit = 2000;
+            field.lineType = InputField.LineType.MultiLineNewline;
+            return field;
         }
 
         static Transform Section(Transform parent, string name)

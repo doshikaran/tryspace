@@ -1,7 +1,10 @@
 {
     "name": "Tryscape.Content.MovingDay",
     "rootNamespace": "Tryscape.Content.MovingDay",
-    "references": ["Tryscape.Core"],
+    "references": [
+        "Tryscape.Core",
+        "Tryscape.Application"
+    ],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
