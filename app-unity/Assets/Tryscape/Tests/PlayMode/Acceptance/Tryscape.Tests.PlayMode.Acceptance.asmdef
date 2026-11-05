@@ -1,0 +1,23 @@
+{
+    "name": "Tryscape.Tests.PlayMode.Acceptance",
+    "rootNamespace": "Tryscape.Tests.PlayMode.Acceptance",
+    "references": [
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner",
+        "Tryscape.Core",
+        "Tryscape.Application",
+        "Tryscape.Content.MovingDay",
+        "Tryscape.Unity",
+        "Oculus.Interaction",
+        "UnityEngine.UI"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": ["nunit.framework.dll"],
+    "autoReferenced": false,
+    "defineConstraints": ["UNITY_INCLUDE_TESTS"],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

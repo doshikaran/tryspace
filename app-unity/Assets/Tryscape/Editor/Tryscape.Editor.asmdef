@@ -6,9 +6,16 @@
         "Unity.XR.Management.Editor",
         "Unity.XR.OpenXR",
         "Unity.XR.OpenXR.Editor",
-        "Oculus.VR.Editor"
+        "Oculus.VR.Editor",
+        "Tryscape.Unity",
+        "Oculus.Interaction",
+        "Oculus.Interaction.Editor",
+        "UnityEngine.UI",
+        "Oculus.VR"
     ],
-    "includePlatforms": ["Editor"],
+    "includePlatforms": [
+        "Editor"
+    ],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
     "overrideReferences": false,

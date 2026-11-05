@@ -37,12 +37,13 @@ namespace Tryscape.Editor
             cameraRig.name = "OVRCameraRig";
             var interactionRig = InstantiatePrefab(InteractionRigPrefab, cameraRig.transform);
             interactionRig.name = "OVRComprehensiveInteractionRig";
+            WireInteractionRig(cameraRig, interactionRig);
 
             var floor = GameObject.CreatePrimitive(PrimitiveType.Plane);
             floor.name = "Floor";
             floor.transform.localScale = new Vector3(2f, 1f, 2f);
 
-            ExtendScene?.Invoke(scene);
+            ExperienceBuilder.Build();
 
             if (!AssetDatabase.IsValidFolder("Assets/Tryscape/Scenes"))
                 AssetDatabase.CreateFolder("Assets/Tryscape", "Scenes");
@@ -53,8 +54,48 @@ namespace Tryscape.Editor
             Debug.Log($"[Tryscape] Bootstrap scene written to {BuildCli.BootstrapScene}");
         }
 
-        /// <summary>Hook for later phases to add application objects to the generated scene.</summary>
-        internal static Action<Scene> ExtendScene;
+        /// <summary>
+        /// Sets the scene references Meta's ComprehensiveRigExample sets as overrides (camera rig, player origin and
+        /// eyes, eye anchors, centre-eye camera). Fails the build if any of these required references stays unresolved.
+        /// </summary>
+        static void WireInteractionRig(GameObject cameraRigGo, GameObject interactionRig)
+        {
+            var cameraRig = cameraRigGo.GetComponent<OVRCameraRig>() ?? throw new InvalidOperationException("OVRCameraRig missing");
+            var centerEye = cameraRigGo.transform.Find("TrackingSpace/CenterEyeAnchor")?.GetComponent<Camera>()
+                            ?? throw new InvalidOperationException("CenterEyeAnchor camera missing");
+            var leftEye = cameraRigGo.transform.Find("TrackingSpace/LeftEyeAnchor") ?? throw new InvalidOperationException("LeftEyeAnchor missing");
+            var rightEye = cameraRigGo.transform.Find("TrackingSpace/RightEyeAnchor") ?? throw new InvalidOperationException("RightEyeAnchor missing");
+            var assigned = 0;
+            foreach (var component in interactionRig.GetComponentsInChildren<MonoBehaviour>(true))
+            {
+                if (component == null)
+                    continue;
+                var serialized = new SerializedObject(component);
+                var changed = false;
+                changed |= Assign(serialized, "_ovrCameraRig", cameraRig, ref assigned);
+                changed |= Assign(serialized, "_playerOrigin", cameraRigGo.transform, ref assigned);
+                changed |= Assign(serialized, "_centerEyeCamera", centerEye, ref assigned);
+                changed |= Assign(serialized, "_playerEyes", centerEye.transform, ref assigned);
+                changed |= Assign(serialized, "_leftEyeAnchor", leftEye, ref assigned);
+                changed |= Assign(serialized, "_rightEyeAnchor", rightEye, ref assigned);
+                if (changed)
+                    serialized.ApplyModifiedPropertiesWithoutUndo();
+            }
+            Debug.Log($"[Tryscape] Interaction rig references wired: {assigned}");
+            if (assigned == 0)
+                throw new InvalidOperationException("No interaction rig references were wired; Meta SDK layout changed?");
+        }
+
+        static bool Assign(SerializedObject serialized, string field, UnityEngine.Object value, ref int assigned)
+        {
+            var property = serialized.FindProperty(field);
+            if (property == null || property.propertyType != SerializedPropertyType.ObjectReference ||
+                property.objectReferenceValue != null)
+                return false;
+            property.objectReferenceValue = value;
+            assigned++;
+            return true;
+        }
 
         static GameObject InstantiatePrefab(string path, Transform parent)
         {

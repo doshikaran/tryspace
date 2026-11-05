@@ -1,0 +1,20 @@
+{
+    "name": "Tryscape.Unity",
+    "rootNamespace": "Tryscape.Unity",
+    "references": [
+        "Tryscape.Core",
+        "Tryscape.Application",
+        "Tryscape.Content.MovingDay",
+        "Oculus.Interaction",
+        "UnityEngine.UI"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

@@ -60,6 +60,34 @@ namespace Tryscape.Tests.PlayMode.XR
 
         static IEnumerator RunScene(string scenePath)
         {
+            // Fail on any error/assert/exception while the scene runs: SDK "required reference" assertions are
+            // logged as LogType.Assert, which the test framework does not fail on by default.
+            var problems = new System.Collections.Generic.List<string>();
+            void Capture(string message, string stack, LogType type)
+            {
+                if (type == LogType.Error || type == LogType.Assert || type == LogType.Exception)
+                    problems.Add($"{type}: {message.Split('\n')[0]}");
+            }
+            Application.logMessageReceived += Capture;
+            try
+            {
+                var inner = RunSceneChecks(scenePath);
+                while (inner.MoveNext())
+                    yield return inner.Current;
+                // Let the scene run a little longer: late-binding failures surface after the first frames.
+                var settle = Time.realtimeSinceStartup + 3f;
+                while (Time.realtimeSinceStartup < settle)
+                    yield return null;
+            }
+            finally
+            {
+                Application.logMessageReceived -= Capture;
+            }
+            Assert.IsEmpty(problems, "Errors logged while the scene ran:\n" + string.Join("\n", problems.Distinct().Take(20)));
+        }
+
+        static IEnumerator RunSceneChecks(string scenePath)
+        {
 #if UNITY_EDITOR
             yield return UnityEditor.SceneManagement.EditorSceneManager.LoadSceneAsyncInPlayMode(
                 scenePath, new LoadSceneParameters(LoadSceneMode.Single));
