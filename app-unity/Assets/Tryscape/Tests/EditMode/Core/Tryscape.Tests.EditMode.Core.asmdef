@@ -1,0 +1,21 @@
+{
+    "name": "Tryscape.Tests.EditMode.Core",
+    "rootNamespace": "Tryscape.Tests.EditMode.Core",
+    "references": [
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner",
+        "Tryscape.Core",
+        "Tryscape.Application",
+        "Tryscape.Infrastructure",
+        "Tryscape.Content.MovingDay"
+    ],
+    "includePlatforms": ["Editor"],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": ["nunit.framework.dll", "Newtonsoft.Json.dll"],
+    "autoReferenced": false,
+    "defineConstraints": ["UNITY_INCLUDE_TESTS"],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

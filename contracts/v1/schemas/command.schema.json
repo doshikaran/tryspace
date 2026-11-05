@@ -71,7 +71,7 @@
           "oneOf": [
             {"type": "null"},
             {"enum": [
-              "revision_conflict", "unknown_entity", "entity_not_editable", "out_of_room",
+              "revision_conflict", "project_mismatch", "unknown_entity", "entity_not_editable", "out_of_room",
               "overlaps_payload_start", "overlaps_blocker", "unsupported_yaw", "not_snapped",
               "unknown_route", "nothing_to_undo", "nothing_to_redo", "invalid_scene", "unsupported_command"
             ]}

@@ -1,0 +1,14 @@
+{
+    "name": "Tryscape.Application",
+    "rootNamespace": "Tryscape.Application",
+    "references": ["Tryscape.Core"],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [],
+    "autoReferenced": false,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": true
+}
