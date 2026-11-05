@@ -1,6 +1,6 @@
 # Tryscape progress
 
-Last updated: 5 November 2026 · Integration commit `bfda97f` · Authoritative gate state: [`docs/progress/phase-state.json`](progress/phase-state.json) (`python3 scripts/check_release.py --phase 0` … `3`).
+Last updated: 6 November 2026 · Integration commit `6f402ef` · Authoritative gate state: [`docs/progress/phase-state.json`](progress/phase-state.json) (`python3 scripts/check_release.py --phase 0` … `4`).
 
 | Phase | Status | Open gates |
 | --- | --- | --- |
@@ -8,6 +8,7 @@ Last updated: 5 November 2026 · Integration commit `bfda97f` · Authoritative g
 | 1 hand-driven slice | **Implemented and automated-verified; phase blocked** on manual/device checks | manual simulator walkthrough, Quest lost-tracking check (AC12) |
 | 2 evaluation, replay, explanation | **Evaluator, replay, explanation and stale result implemented and automated-verified; phase blocked** | manual simulator walkthrough, backend intent extraction (provider decision), DevAgent token regeneration |
 | 3 creation flow | **Speech or typed text → transcription (whisper.cpp) → proposal → hand review → staged build → rehearsal implemented and automated-verified on this Mac against a local service, including real microphone capture (synthetic speech replayed); phase blocked** | model-assisted interpreter and deployment (provider decision), voice benchmark on a deployment, human-speech accuracy, DevAgent token, manual and Quest checks |
+| 4 comparison and persistence | **Attempt A/B comparison, read-only inspection with replay, and local save/open/delete with staged writes and recovery implemented and automated-verified (Editor, same-process restart); phase blocked** | simulator walkthrough steps 15–17, device kill/restart and background checks |
 
 Moving Day is still the **provisional** reference pack. Nothing here claims a headset run or voice creation. Phase 3 creation accepts **speech** (whisper.cpp on a **local developer service, not a judge-accessible deployment**) or typed development input, and interprets it with a **deterministic rule-based interpreter** (`deterministic_rules`, not an AI model); see [`phase-3-summary.md`](progress/phase-3-summary.md) and [`phase-3b-voice-summary.md`](progress/phase-3b-voice-summary.md). Route results are "in this model" (floor footprint only), never a physical guarantee.
 
@@ -31,6 +32,7 @@ Moving Day is still the **provisional** reference pack. Nothing here claims a he
 | `unity_batch.sh`: fresh `--artifact` evidence, `<step>.status.json`, `clean_success` vs `success_with_shutdown_abort` reported separately from Unity's exit code | used for every Phase 2 Unity step |
 | **Creation pipeline (Phase 3)**:<ul><li>backend scene-proposal jobs (session, consent, idempotency, limits, deadlines, cancellation) with a separate SKIP LOCKED worker;</li><li>deterministic interpreter and assembler;</li><li>Unity coordinator, which discards late, superseded or stale results;</li><li>pack check that only accepts the template's own scene;</li><li>review, correct and clarify UI; staged commit.</li></ul> | backend 155 pytest; contracts 300; EditMode 149/149; PlayMode 29/29; live local backend 2/2; 4 mutation checks |
 | **Voice creation (Phase 3b)**:<ul><li>`POST /v1/transcription-jobs`: raw WAV validated before storage; consent, idempotency, ownership, deadlines, cancel; audio in an owner-only temp store, deleted at terminal states;</li><li>Unity `VoiceRecorder` and `UnityMicrophone` (permission, 15 s limit, device loss, focus-loss discard, silence);</li><li>one 30 s budget for transcription plus proposal;</li><li>Describe with voice: notice, Allow, elapsed time, Stop and Cancel; review shows "Spoken input" with Edit transcript.</li></ul> | backend 169; EditMode 170/170; PlayMode 41/41; live spoken requests 1/1 (3 requests); real Mac microphone loopback 1/1; mutation checks 3+2 |
+| **Comparison + local projects (Phase 4)**: immutable Attempt A/B snapshots, evidence-based comparison, Inspect/Replay; `ProjectStore` (temp → verify → backup → replace, recovery, `.corrupt`, version protection, limits, delete); see [`phase-4-summary.md`](progress/phase-4-summary.md) | contracts 315; EditMode 186/186; PlayMode 43/43; persistence mutations caught |
 | **ASR spike**: whisper.cpp v1.9.5 + tiny.en/base.en on this Mac with **synthetic** (macOS `say`) speech: 196/198 and 197/198 utterances with correct parameters. Human speech and Quest not run. | `artifacts/phase-3/asr-spike-mac-tts.json` |
 | Security: Meta DevAgent access token stripped from builds (0 hits in APK, 0 in any git object). **Not yet regenerated.** Dev APKs carry this Mac's LAN IP in `boot.config` (Unity's standard dev-build player connection; not a credential) | APK scan, `git cat-file --batch-all-objects` scan |
 
@@ -63,6 +65,9 @@ Moving Day is still the **provisional** reference pack. Nothing here claims a he
 12. **No size given → Interpret**: choose **Use 6 m by 5 m example** (resubmitted) or **Enter dimensions** (hand editor). **Unsupported request → Interpret**: reasons shown, and no build button.
 13. Stop the API, then Interpret again: you should get "not reachable … Create with hands" and the existing scene should be unchanged. Note whether the review card text fits.
 14. **Phase 3b, voice** (service started with `TRYSCAPE_ASR_BINARY`/`TRYSCAPE_ASR_MODEL`, see README): **Describe with voice → Allow and record**, allow the OS microphone prompt, then say "Prepare a six by five metre living room for a sofa delivery. There is a console table in the way." Press **Stop**. The card should show the elapsed time, then Transcribing, then a review with "Spoken input, transcribed by whisper_cpp_base_en". Try **Edit transcript**, **Cancel** while transcribing, and denying the microphone. Report recognition errors.
+15. **Phase 4, comparison.** Create the example → **Rehearse** → **Keep as A**. Drag the console south → **Rehearse** → **Keep as B** → **Compare**. Check that the card shows both attempts, "Changed: Console table moved …" and the preparation line. Try **Inspect A**, **Replay attempt**, **Live scene** and **Back to editing**. Note whether the card text fits.
+16. **Save**, press **Larger** once, then stop Play mode (or quit the app) and start it again. **Open saved project → Open**: you should get revision 1, both attempts, and the zoom you saved. **Compare** again, then **Reset** (the console returns to the middle).
+17. **Open saved project → Delete** (press twice). The list should be empty.
 
 ## Manual and device checklist (Phase 1–3)
 
@@ -76,12 +81,14 @@ Moving Day is still the **provisional** reference pack. Nothing here claims a he
 | IL2CPP/device canonical hash parity | not run | Quest; compare EditMode hashes with an on-device run |
 | Microphone capture and transcription on device (RECORD_AUDIO prompt, deny/revoke, quality, frame time while recording) | not run | Quest; `adb reverse tcp:8000 tcp:8000` to the Mac service |
 | Voice walkthrough with a person on the Mac (step 14) | not run | a person speaking; macOS microphone permission for Unity |
+| Compare/save/reopen walkthrough (steps 15–17), comparison-card readability | not run | a person at the Editor with the XR Simulator |
+| Device kill/restart reopen (AC15), background during save/open (AC21), on-device storage | not run | Quest |
 | Human-speech ASR accuracy (Mac) | not run | recordings (procedure above); every voice run so far used synthetic `say` speech |
 
 ## Known limitations (deliberate, not bugs)
 
-- No Attempt A/B comparison UI yet (deferred to Phase 4 with persistence); no movers or route direction markers; no seek control in the UI.
-- No local save/load (Phase 4). "Open saved" and "Speak a situation" explain that they are unavailable. Typed description is development input, and release builds have no creation endpoint.
+- No movers or route direction markers; no seek control in the UI. Comparison inspects one snapshot at a time (no ghosted side-by-side rooms).
+- Saved projects keep no undo history, and only schema 1.0.0 exists (no migrations yet).
 - The sofa is not hand-selectable (its label is always shown). Locomotion and teleport interactors from Meta's comprehensive rig are still present; consider disabling them for seated use.
 - Greybox art; legacy `TextMesh`/uGUI text; panel sizes are untested for comfort.
 - Unity 6.6 is not an LTS release (decision D11).
@@ -89,9 +96,10 @@ Moving Day is still the **provisional** reference pack. Nothing here claims a he
 ## Next smallest task
 
 Human:
-1. Record 5–10 human utterances (procedure above) and run `scripts/asr_spike.py --source recordings`.
-2. Install the development APK on a Quest, run `adb reverse tcp:8000 tcp:8000`, and do one spoken creation (step 14).
-3. Regenerate the DevAgent token.
-4. Make the provider, hosting and budget decision.
+1. Run walkthrough steps 15–17 (and 1–14 if not done).
+2. Connect a Quest for the device kill/restart and background checks.
+3. Record human speech for the ASR spike.
+4. Regenerate the DevAgent token.
+5. Make the provider and hosting decision.
 
-Agent (when directed): score the human recordings, then measure frame time during capture on device.
+Agent (when directed): Phase 5 device-quality work on a connected Quest.

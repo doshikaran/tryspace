@@ -4,7 +4,7 @@
 
 Tryscape turns a described situation into an interactive spatial rehearsal. Voice creates the initial environment through a Python AI backend; after that, hands do the editing, rehearsal, replay and comparison. The reference scenario, Moving Day, is **provisional**.
 
-> **Status:** M0 baseline, the Phase 1 hands-only editing slice, the Phase 2 route evaluator/replay/explanation, and Phase 3 creation from speech or typed text (microphone capture, whisper.cpp transcription jobs, proposal jobs, review, hand correction, staged build) are implemented and automated-verified on a developer Mac against a **local** service. Interpretation is a **deterministic rule-based parser** (`deterministic_rules`), not an AI model. Human-speech accuracy, model-assisted interpretation, deployment (provider decision deferred), comparison, saving and on-headset validation are **not** done. See [docs/progress.md](docs/progress.md).
+> **Status:** M0 baseline, the Phase 1 hands-only editing slice, the Phase 2 route evaluator/replay/explanation, and Phase 3 creation from speech or typed text (microphone capture, whisper.cpp transcription jobs, proposal jobs, review, hand correction, staged build) are implemented and automated-verified on a developer Mac against a **local** service. Interpretation is a **deterministic rule-based parser** (`deterministic_rules`), not an AI model. Human-speech accuracy, model-assisted interpretation, deployment (provider decision deferred), on-headset validation are **not** done. Phase 4 adds Attempt A/B comparison and local save/open/delete (Editor-verified). See [docs/progress.md](docs/progress.md).
 
 ## Layout
 
@@ -53,9 +53,9 @@ scripts/unity_batch.sh scene-build "Bootstrap scene written" -- -batchmode -quit
 
 # tests: judged from the result XML, never from log text
 scripts/unity_batch.sh editmode "Saving results to" --artifact "$PWD/artifacts/unity/editmode.xml" -- -batchmode -projectPath "$PWD/app-unity" -runTests -testPlatform EditMode -testResults "$PWD/artifacts/unity/editmode.xml"
-python3 scripts/check_test_results.py artifacts/unity/editmode.xml --min-tests 170 --no-skips
+python3 scripts/check_test_results.py artifacts/unity/editmode.xml --min-tests 186 --no-skips
 scripts/unity_batch.sh playmode "Saving results to" --artifact "$PWD/artifacts/unity/playmode.xml" -- -batchmode -projectPath "$PWD/app-unity" -runTests -testPlatform PlayMode -testCategory Experience -testResults "$PWD/artifacts/unity/playmode.xml"
-python3 scripts/check_test_results.py artifacts/unity/playmode.xml --min-tests 41 --no-skips
+python3 scripts/check_test_results.py artifacts/unity/playmode.xml --min-tests 43 --no-skips
 # with the local service running: live round trip through Unity's HTTP adapter
 scripts/unity_batch.sh playmode-backend "Saving results to" --artifact "$PWD/artifacts/unity/playmode-backend.xml" -- -batchmode -projectPath "$PWD/app-unity" -runTests -testPlatform PlayMode -testCategory Backend -testResults "$PWD/artifacts/unity/playmode-backend.xml"
 scripts/run_xrsim_smoke.sh          # Meta XR Simulator runtime; needs the Interaction SDK example scenes imported

@@ -1,9 +1,9 @@
 {
   "schema_version": "1.0.0",
-  "current_phase": 3,
+  "current_phase": 4,
   "status": "blocked",
-  "input_commit": "4185fb0",
-  "integration_commit": "bfda97f",
+  "input_commit": "5864768",
+  "integration_commit": "6f402ef",
   "worker_runs": {
     "A": {
       "status": "not_run",
@@ -211,7 +211,7 @@
       "command_or_procedure": "Record exact backend/model deployment configuration or the concrete blocker",
       "environment": "n/a",
       "evidence_path": "docs/progress.md",
-      "evidence_sha256": "f4d17b7a0313f6a3eb2fe78917e4a071214631066d53a458f4cdbdba80391267",
+      "evidence_sha256": "ccf6f1a711159c04ced1fe19bc086f945cc0853a7e86875b1bdfeb5c8e906190",
       "notes": "Recorded as blocked (P0-model-access-deployment). Phase 1 workstream C (recording upload, ASR jobs) not started for that reason."
     },
     {
@@ -587,6 +587,127 @@
       "evidence_path": "artifacts/phase-4/playmode-mic-loopback.xml",
       "evidence_sha256": "e81718833e1a6a28ffe8869057943c26cf4e0576c38b31cb31a20c9395c1b651",
       "notes": "Real Mac microphone capture of SYNTHETIC speech replayed acoustically; transcribed and reviewed as a 6 m room. Not human speech, not Quest."
+    },
+    {
+      "id": "P4-immutable-attempts-comparison",
+      "phase": 4,
+      "required": true,
+      "status": "pass",
+      "command_or_procedure": "EditMode AttemptComparisonTests",
+      "environment": "MacBook Air Mac17,3, Apple M5 arm64, macOS 26.6 (25G72); Unity 6000.6.8f1; Meta XR Core/Interaction 207.0.1; OpenXR 1.17.1; Meta XR Simulator 207.1.0; PostgreSQL 18; Python 3.12/uv; commit 6f402ef",
+      "evidence_path": "artifacts/phase-5/editmode.xml",
+      "evidence_sha256": "e1a654fcaeb3746dfd4721848f02d2010ef9c0fb49897cb0b1984cd734681e5d",
+      "notes": "Attempt A unchanged after edits and Attempt B; F01/F02/F03/F04 independently expected outcomes and lengths; evaluator/catalog/scene/invalid mismatches not compared; no probability/savings wording."
+    },
+    {
+      "id": "P4-persistence-roundtrip",
+      "phase": 4,
+      "required": true,
+      "status": "pass",
+      "command_or_procedure": "EditMode ProjectStoreTests.SaveAndReopen + PythonSerializedFixtures",
+      "environment": "MacBook Air Mac17,3, Apple M5 arm64, macOS 26.6 (25G72); Unity 6000.6.8f1; Meta XR Core/Interaction 207.0.1; OpenXR 1.17.1; Meta XR Simulator 207.1.0; PostgreSQL 18; Python 3.12/uv; commit 6f402ef",
+      "evidence_path": "artifacts/phase-5/editmode.xml",
+      "evidence_sha256": "e1a654fcaeb3746dfd4721848f02d2010ef9c0fb49897cb0b1984cd734681e5d",
+      "notes": "Committed scene, baseline, revision, zoom and both attempts' run ids, evidence/scene hashes, catalog/evaluator versions preserved via a fresh store; cross-runtime fixture parity with the Python serializer."
+    },
+    {
+      "id": "P4-interruption-corruption-recovery",
+      "phase": 4,
+      "required": true,
+      "status": "pass",
+      "command_or_procedure": "EditMode ProjectStoreTests (interruption at every stage, truncation, corrupt primary, index rebuild)",
+      "environment": "MacBook Air Mac17,3, Apple M5 arm64, macOS 26.6 (25G72); Unity 6000.6.8f1; Meta XR Core/Interaction 207.0.1; OpenXR 1.17.1; Meta XR Simulator 207.1.0; PostgreSQL 18; Python 3.12/uv; commit 6f402ef",
+      "evidence_path": "artifacts/phase-5/editmode-mutation-backup.xml",
+      "evidence_sha256": "0f13a0d727cbd14436bbc3d621f0d7c823ad236ac94337762e45327432dcbceb",
+      "notes": "All interruption stages leave a loadable committed project; .bak/.tmp recovery; .corrupt preserved. Mutations (no backup; no content-hash check) each caught; evidence editmode-mutation-*.xml."
+    },
+    {
+      "id": "P4-version-and-reference-protection",
+      "phase": 4,
+      "required": true,
+      "status": "pass",
+      "command_or_procedure": "EditMode ProjectStoreTests",
+      "environment": "MacBook Air Mac17,3, Apple M5 arm64, macOS 26.6 (25G72); Unity 6000.6.8f1; Meta XR Core/Interaction 207.0.1; OpenXR 1.17.1; Meta XR Simulator 207.1.0; PostgreSQL 18; Python 3.12/uv; commit 6f402ef",
+      "evidence_path": "artifacts/phase-5/editmode.xml",
+      "evidence_sha256": "e1a654fcaeb3746dfd4721848f02d2010ef9c0fb49897cb0b1984cd734681e5d",
+      "notes": "Newer major version read-protected and never overwritten; tampered, extra-field, misfiled and missing runs rejected; failed open keeps the current project (PlayMode). No migration functions exist yet (only schema 1.0.0)."
+    },
+    {
+      "id": "P4-quota-and-delete",
+      "phase": 4,
+      "required": true,
+      "status": "pass",
+      "command_or_procedure": "EditMode ProjectLimitIsEnforcedWithoutDeletingAndDeleteRemovesEverything + PlayMode two-press delete",
+      "environment": "MacBook Air Mac17,3, Apple M5 arm64, macOS 26.6 (25G72); Unity 6000.6.8f1; Meta XR Core/Interaction 207.0.1; OpenXR 1.17.1; Meta XR Simulator 207.1.0; PostgreSQL 18; Python 3.12/uv; commit 6f402ef",
+      "evidence_path": "artifacts/phase-5/editmode.xml",
+      "evidence_sha256": "e1a654fcaeb3746dfd4721848f02d2010ef9c0fb49897cb0b1984cd734681e5d",
+      "notes": "20-project limit enforced without deleting anything; delete removes project directory including backups and the index entry."
+    },
+    {
+      "id": "P4-no-audio-or-tokens-stored",
+      "phase": 4,
+      "required": true,
+      "status": "pass",
+      "command_or_procedure": "EditMode NoAudioCredentialsOrTranscriptFieldsArePersisted",
+      "environment": "MacBook Air Mac17,3, Apple M5 arm64, macOS 26.6 (25G72); Unity 6000.6.8f1; Meta XR Core/Interaction 207.0.1; OpenXR 1.17.1; Meta XR Simulator 207.1.0; PostgreSQL 18; Python 3.12/uv; commit 6f402ef",
+      "evidence_path": "artifacts/phase-5/editmode.xml",
+      "evidence_sha256": "e1a654fcaeb3746dfd4721848f02d2010ef9c0fb49897cb0b1984cd734681e5d",
+      "notes": "Written snapshot files contain no audio, token, credential or transcript fields."
+    },
+    {
+      "id": "P4-journey-playmode",
+      "phase": 4,
+      "required": true,
+      "status": "pass",
+      "command_or_procedure": "PlayMode HandsOnlySliceTests.CompareTwoAttemptsSaveRestartAndReopen",
+      "environment": "MacBook Air Mac17,3, Apple M5 arm64, macOS 26.6 (25G72); Unity 6000.6.8f1; Meta XR Core/Interaction 207.0.1; OpenXR 1.17.1; Meta XR Simulator 207.1.0; PostgreSQL 18; Python 3.12/uv; commit 6f402ef",
+      "evidence_path": "artifacts/phase-5/playmode.xml",
+      "evidence_sha256": "6dd001ed0f5c02d27536583a61ce52c971b0b2ba8eaff8b3ea564f8820543431",
+      "notes": "Create, rehearse, keep A, real Grabbable drag, rehearse, keep B, compare, inspect/replay (read-only), zoom, save, destroy+rebuild app over the same folder, reopen, compare, reset, delete. Same-process restart only."
+    },
+    {
+      "id": "P4-regressions",
+      "phase": 4,
+      "required": true,
+      "status": "pass",
+      "command_or_procedure": "Contracts 315; backend 169; EditMode 186/186; PlayMode 43/43; XR simulator 2/2; VerifyBatch 0",
+      "environment": "MacBook Air Mac17,3, Apple M5 arm64, macOS 26.6 (25G72); Unity 6000.6.8f1; Meta XR Core/Interaction 207.0.1; OpenXR 1.17.1; Meta XR Simulator 207.1.0; PostgreSQL 18; Python 3.12/uv; commit 6f402ef",
+      "evidence_path": "artifacts/phase-5/verify-config.json",
+      "evidence_sha256": "9770fd20829663d444b4d02d160e222ed1ba25cf158725a763826d1f6f1ac2cd",
+      "notes": "All clean_success."
+    },
+    {
+      "id": "P4-android-build",
+      "phase": 4,
+      "required": true,
+      "status": "pass",
+      "command_or_procedure": "BuildCli.BuildAndroid (dev) and -tryscapeRelease from clean 6f402ef",
+      "environment": "MacBook Air Mac17,3, Apple M5 arm64, macOS 26.6 (25G72); Unity 6000.6.8f1; Meta XR Core/Interaction 207.0.1; OpenXR 1.17.1; Meta XR Simulator 207.1.0; PostgreSQL 18; Python 3.12/uv; commit 6f402ef",
+      "evidence_path": "artifacts/phase-5/apk-release-manifest.json",
+      "evidence_sha256": "0ddfaf4e7733a9beca3fa0eaa30bbd8e24ec4e0f5ea07ed02b1f63f186f150ae",
+      "notes": "Both APKs fresh, working_tree_dirty false. Dev unity exit 0. Release unity exit 134 AFTER Build result=Succeeded (success_with_shutdown_abort, teardown terminate_handler); recorded separately. Neither installed on a device. Token 0 hits in both (apk-scan.txt)."
+    },
+    {
+      "id": "P4-manual-simulator-walkthrough",
+      "phase": 4,
+      "required": true,
+      "status": "not_run",
+      "command_or_procedure": "docs/progress.md steps 15-17",
+      "environment": "MacBook Air Mac17,3, Apple M5 arm64, macOS 26.6 (25G72); Unity 6000.6.8f1; Meta XR Core/Interaction 207.0.1; OpenXR 1.17.1; Meta XR Simulator 207.1.0; PostgreSQL 18; Python 3.12/uv; commit 6f402ef",
+      "evidence_path": null,
+      "evidence_sha256": null,
+      "notes": "Needs a person at the Editor + XR Simulator; includes comparison-card readability."
+    },
+    {
+      "id": "P4-device-restart-resume",
+      "phase": 4,
+      "required": true,
+      "status": "not_run",
+      "command_or_procedure": "Quest: kill/restart reopen (AC15), background during save/open (AC21)",
+      "environment": "MacBook Air Mac17,3, Apple M5 arm64, macOS 26.6 (25G72); Unity 6000.6.8f1; Meta XR Core/Interaction 207.0.1; OpenXR 1.17.1; Meta XR Simulator 207.1.0; PostgreSQL 18; Python 3.12/uv; commit 6f402ef",
+      "evidence_path": null,
+      "evidence_sha256": null,
+      "notes": "No Quest connected."
     }
   ],
   "blockers": [
@@ -613,7 +734,8 @@
       "gates": [
         "P1-manual-simulator-walkthrough",
         "P2-manual-simulator-walkthrough",
-        "P3-manual-simulator-walkthrough"
+        "P3-manual-simulator-walkthrough",
+        "P4-manual-simulator-walkthrough"
       ],
       "human_action": "Run the documented simulator walkthrough and record the outcome."
     },
@@ -621,7 +743,8 @@
       "id": "B-quest-device",
       "gates": [
         "P1-drag-loss-device",
-        "P3-quest-device"
+        "P3-quest-device",
+        "P4-device-restart-resume"
       ],
       "human_action": "Connect a Quest 3/3S in developer mode for device checks."
     },
@@ -649,5 +772,5 @@
     }
   ],
   "completed_phases": [],
-  "next_action": "Human: human speech recordings for scripts/asr_spike.py; Quest install with adb reverse and one spoken creation; simulator walkthrough steps 1-14; regenerate DevAgent token; provider/hosting/budget decision. Agent: run the human-speech spike once recordings exist; device-side frame-time measurement during capture."
+  "next_action": "Human: simulator walkthrough steps 1-17; Quest install for device restart/resume; human speech recordings; DevAgent token regeneration; provider/hosting decision. Agent: Phase 5 device-quality preparation when a Quest is available."
 }

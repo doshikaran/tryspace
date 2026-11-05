@@ -82,6 +82,19 @@ REQUIRED_GATES: dict[int, set[str]] = {
         "P3-quest-device",
         "P3-devagent-token-rotated",
     },
+    4: {
+        "P4-immutable-attempts-comparison",
+        "P4-persistence-roundtrip",
+        "P4-interruption-corruption-recovery",
+        "P4-version-and-reference-protection",
+        "P4-quota-and-delete",
+        "P4-no-audio-or-tokens-stored",
+        "P4-journey-playmode",
+        "P4-regressions",
+        "P4-android-build",
+        "P4-manual-simulator-walkthrough",
+        "P4-device-restart-resume",
+    },
 }
 
 
