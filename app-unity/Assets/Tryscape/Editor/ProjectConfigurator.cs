@@ -90,6 +90,11 @@ namespace Tryscape.Editor
             var problems = Verify();
             foreach (var p in problems)
                 Debug.LogError($"[Tryscape] VERIFY FAIL: {p}");
+            // Evidence file for scripts/unity_batch.sh --artifact: written only after verification ran to the end.
+            var report = System.IO.Path.GetFullPath(System.IO.Path.Combine(UnityEngine.Application.dataPath, "..", "..", "artifacts", "unity", "verify-config.json"));
+            System.IO.Directory.CreateDirectory(System.IO.Path.GetDirectoryName(report)!);
+            System.IO.File.WriteAllText(report, "{\"problems\":" + problems.Count + ",\"problem_list\":[" +
+                string.Join(",", problems.ConvertAll(p => "\"" + p.Replace("\\", "\\\\").Replace("\"", "\\\"") + "\"")) + "]}\n");
             Debug.Log($"[Tryscape] Verify complete: {problems.Count} problem(s)");
             if (problems.Count > 0)
                 throw new InvalidOperationException($"{problems.Count} configuration problem(s); see log");

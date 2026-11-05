@@ -59,12 +59,17 @@ namespace Tryscape.Editor
             ghostGo.transform.SetParent(tabletop.transform, false);
             var ghost = ghostGo.AddComponent<PlacementGhost>();
             ghost.Configure(m.GhostValid, m.GhostInvalid);
+            var highlightGo = new GameObject("Result Highlight");
+            highlightGo.transform.SetParent(tabletop.transform, false);
+            var highlight = highlightGo.AddComponent<ResultHighlight>();
+            highlight.Configure(m.Contact);
+            tabletop.AddComponent<PlaybackController>();
 
             var panel = BuildPanel();
 
             var appGo = new GameObject("Tryscape");
             var app = appGo.AddComponent<TryscapeApp>();
-            app.Configure(presenter, ghost, panel, tabletopController);
+            app.Configure(presenter, ghost, panel, tabletopController, highlight);
 
             AssetDatabase.SaveAssets();
         }
@@ -156,17 +161,17 @@ namespace Tryscape.Editor
             var canvas = canvasGo.GetComponent<Canvas>();
             canvas.renderMode = RenderMode.WorldSpace;
             var rect = canvasGo.GetComponent<RectTransform>();
-            rect.sizeDelta = new Vector2(560, 700);
+            rect.sizeDelta = new Vector2(560, 900);
             canvasGo.transform.position = new Vector3(-0.5f, 1.05f, 0.5f);
             canvasGo.transform.rotation = Quaternion.Euler(0f, -35f, 0f);
             canvasGo.transform.localScale = Vector3.one * 0.001f; // 1 px = 1 mm
 
             Image(canvasGo.transform, "Background", new Color(0.08f, 0.09f, 0.11f, 0.92f), stretch: true);
-            var title = Text(canvasGo.transform, "Title", "Tryscape", 40, FontStyle.Bold, new Vector2(0, 310), new Vector2(520, 60));
+            var title = Text(canvasGo.transform, "Title", "Tryscape", 40, FontStyle.Bold, new Vector2(0, 405), new Vector2(520, 60));
             title.alignment = TextAnchor.MiddleCenter;
             Text(canvasGo.transform, "Tagline", "Understand the situation. Rehearse your options. Act prepared.", 18,
-                FontStyle.Italic, new Vector2(0, 270), new Vector2(520, 30)).alignment = TextAnchor.MiddleCenter;
-            var status = Text(canvasGo.transform, "Status", "", 20, FontStyle.Normal, new Vector2(0, -290), new Vector2(520, 110));
+                FontStyle.Italic, new Vector2(0, 365), new Vector2(520, 30)).alignment = TextAnchor.MiddleCenter;
+            var status = Text(canvasGo.transform, "Status", "", 20, FontStyle.Normal, new Vector2(0, -395), new Vector2(520, 100));
             status.alignment = TextAnchor.UpperLeft;
 
             var buttons = new List<Button>();
@@ -210,9 +215,14 @@ namespace Tryscape.Editor
             buttons.Add(Button(edit, "Recenter", "Recenter", 170, -20, 160));
             buttons.Add(Button(edit, "Menu", "Menu", -130, -90, 250));
             buttons.Add(Button(edit, "Help", "Help", 130, -90, 250));
+            buttons.Add(Button(edit, "Rehearse", "Rehearse", -170, -160, 160));
+            buttons.Add(Button(edit, "PlayPause", "Replay", 0, -160, 160));
+            buttons.Add(Button(edit, "Details", "Details", 170, -160, 160));
+            var result = Text(edit, "ResultCard", "", 18, FontStyle.Normal, new Vector2(0, -275), new Vector2(520, 150));
+            result.alignment = TextAnchor.UpperLeft;
 
             var controller = canvasGo.AddComponent<PanelController>();
-            controller.Configure(welcome.gameObject, create.gameObject, edit.gameObject, status, draft, scene, buttons);
+            controller.Configure(welcome.gameObject, create.gameObject, edit.gameObject, status, draft, scene, buttons, result);
 
             var created = QuickActionsAPI.AddRayCanvasInteraction(canvasGo).Concat(QuickActionsAPI.AddPokeCanvasInteraction(canvasGo)).ToList();
             Debug.Log($"[Tryscape] Panel canvas interaction objects created={created.Count}");
@@ -294,6 +304,7 @@ namespace Tryscape.Editor
             public readonly Material Selected = Get("Selected", new Color(0.2f, 0.9f, 0.95f));
             public readonly Material GhostValid = Get("GhostValid", new Color(0.3f, 0.85f, 0.35f));
             public readonly Material GhostInvalid = Get("GhostInvalid", new Color(0.9f, 0.25f, 0.2f));
+            public readonly Material Contact = Get("ResultContact", new Color(1f, 0.35f, 0.25f));
 
             static Material Get(string name, Color color)
             {

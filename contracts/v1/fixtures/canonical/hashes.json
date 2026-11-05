@@ -1,0 +1,32 @@
+{
+  "description": "Cross-runtime canonical bytes/hashes (technical-spec S09.1). Produced by the Python reference serializer in scripts/check_contracts.py and asserted independently by Tryscape.Core EditMode tests. Agreement between two implementations, not an independent derivation of correctness.",
+  "serializer_version": "1.0.0",
+  "evaluator_version": "1.0.0",
+  "f01_canonical_scene": "{\"active_route_id\":\"direct\",\"assumptions\":[{\"code\":\"illustrative_layout\",\"requires_confirmation\":false,\"source\":\"template\",\"text\":\"Prepared example; dimensions are not measurements of your home.\"},{\"code\":\"upright_fixed_orientation\",\"requires_confirmation\":false,\"source\":\"scenario_model\",\"text\":\"The sofa remains upright at a fixed orientation; lifting and turning are not assessed.\"}],\"catalog_version\":\"1.0.0\",\"entities\":[{\"catalog_id\":\"sofa_standard\",\"editable\":false,\"id\":\"30000000-0000-4000-8000-000000000001\",\"label\":\"Delivery sofa\",\"pose\":{\"x_mm\":1000,\"yaw_deg\":0,\"z_mm\":2500},\"role\":\"payload\"},{\"catalog_id\":\"console_standard\",\"editable\":true,\"id\":\"30000000-0000-4000-8000-000000000002\",\"label\":\"Console table\",\"pose\":{\"x_mm\":2500,\"yaw_deg\":0,\"z_mm\":2500},\"role\":\"blocker\"}],\"measurement_sources\":[],\"project_id\":\"20000000-0000-4000-8000-000000000001\",\"provenance\":\"illustrative\",\"revision\":0,\"room\":{\"depth_mm\":5000,\"width_mm\":6000},\"routes\":[{\"id\":\"direct\",\"label\":\"Direct approach\",\"payload_entity_id\":\"30000000-0000-4000-8000-000000000001\",\"speed_mm_per_s\":250,\"waypoints\":[{\"x_mm\":1000,\"z_mm\":2500},{\"x_mm\":4000,\"z_mm\":2500},{\"x_mm\":4000,\"z_mm\":3800}]},{\"id\":\"north_detour\",\"label\":\"Northern approach\",\"payload_entity_id\":\"30000000-0000-4000-8000-000000000001\",\"speed_mm_per_s\":250,\"waypoints\":[{\"x_mm\":1000,\"z_mm\":2500},{\"x_mm\":1000,\"z_mm\":4000},{\"x_mm\":4000,\"z_mm\":4000},{\"x_mm\":4000,\"z_mm\":3800}]}],\"scenario_pack_id\":\"moving_day\",\"scenario_pack_version\":\"1.0.0\",\"scene_id\":\"10000000-0000-4000-8000-000000000001\",\"schema_version\":\"1.0.0\"}",
+  "scene_hashes": {
+    "boundary_blocker_one_mm_clear.json": "b63c15037da961ab97961b79ad3838c3e2ea3049598b1fa8ee6734c02a08f703",
+    "boundary_blocker_tangent.json": "f938eb320189d7a181f455b664239934a5077e7446b7e843b8804b4f0fab8c55",
+    "boundary_wall_exact_margin.json": "bac7c48d0d3095b41afecafbd7b143b52707a699a10703e5c1bfeca454fceb76",
+    "boundary_wall_violation.json": "08a19a56bdc3185c6e74c514088fce4e548acec0195c7b910aed4680e0e3161d",
+    "console_quarter_turn.json": "bb210aa9f3ff78151a525d1deea142918830dff8a1685b8c222046d2b9473404",
+    "f01_direct_blocked.json": "ad5f51b932ad9229beefba0c0163edfb62e7ca6792223d74da8407be06110c0f",
+    "f02_console_parked_south.json": "fd6a7e6b4cfa8aa11b24959ab87c212dd8ce2766eb57d9fe7b679e8a6ad8afb7",
+    "f03_north_detour.json": "b5a10fd86a5115ae23ea7eb897783b3e6f7e581e6c12fa8af8c01eefb7b8aa84",
+    "f04_console_north_blocks_detour.json": "723600d8c31902e8c999286becde6b510160b1e5e09ad5915c44d727192b8304",
+    "user_measured_room.json": "8b86eb8aeb0902f620c76889b0c025b35649bbd4897fa22bb7302141427b02cc",
+    "variant_room_7000x6000.json": "bb07263235c25c0050d4fd933410c977d6a797bbee74073656f0121b21d4c4ce"
+  },
+  "evidence_hashes": {
+    "F01": "15a01ae501238cd5342e5f0d58a0fbe47eaccf781cdb0ed57fc4150f2d19d2ec",
+    "F01_north": "0191bfdc3524b8c0878c749d8b2f6d3b589b2b422e06e02bd9d0ec5184fc313c",
+    "F02": "190369769f2c00cf236d8467675869af5bf353093337bdca2ba6bbbfeeabb80d",
+    "F03": "0f6c2ef2a5ab1928df74cc36bae4ccc60243c2b4560d7e64eda3e1cfb7785c3e",
+    "F04": "95463e205d9bf23511384469949956ad98509c9264e4b670eb12fb0efdc8b67a",
+    "F04_direct": "671ac58f925d263ece1a8c1ce8a10554374442159babc91f4f478be347d49414",
+    "V7x6_direct": "63b47a21701eec2af2f870725a011cae754d36772f9204d1e98b82a7657cfce3",
+    "B01_tangent_blocked": "5d418030488baf482a679068e96adefc89922acc9637b363b3a3202e07d3f894",
+    "B02_one_mm_clear": "98366f0882653bf3056f28c4df57a6d0b8ad77431b6ab81a72f1af19471738ef",
+    "B03_wall_exact_margin": "d69a577dec323b28e64dcac43f2ca5988496b3a42aa981840e9fc660707da701",
+    "B04_wall_violation": "179914532c66fb06829fc0d661d10c5686f973304b865561120f32505de73f77"
+  }
+}

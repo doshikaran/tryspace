@@ -20,6 +20,10 @@ Checks performed (exit status 1 on any failure):
   4. A *test-only* exact-rational reference evaluator reproduces the independently
      derived F01-F04 / boundary expectations transcribed from demo-scope D06 and S08.2,
      and its result is invariant to entity ordering.
+  5. A second, independent implementation of the S09.1 canonical serializer reproduces
+     the pinned scene and evidence hashes in fixtures/canonical/hashes.json, which
+     Tryscape.Core's EditMode tests also assert (cross-runtime agreement, not correctness
+     proof). `--write-canonical` regenerates that file; review any diff by hand.
 
 The reference validator/evaluator here exist only to cross-check fixtures. They are not
 the product evaluator: Tryscape.Core (C#) owns that authority, and its own tests must
@@ -28,8 +32,10 @@ consume the same fixtures.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import sys
+import unicodedata
 from collections.abc import Iterator
 from dataclasses import dataclass
 from fractions import Fraction
@@ -332,6 +338,89 @@ def reference_evaluate(scene: dict[str, Any], route_id: str, catalog: dict[str, 
     return {"outcome": "clear_in_model", "route_length_mm": int(length), "first_violation": None}
 
 
+# --------------------------------------------------------------------------- canonical serializer (S09.1)
+
+SERIALIZER_VERSION = "1.0.0"
+EVALUATOR_VERSION = "1.0.0"
+MESSAGE_KEYS = {
+    "blocker_intersection": "blocker_obstructs_route",
+    "room_boundary": "route_leaves_room",
+    "invalid_start": "start_obstructed",
+}
+
+
+def _nfc(value: Any) -> Any:
+    if isinstance(value, str):
+        return unicodedata.normalize("NFC", value)
+    if isinstance(value, list):
+        return [_nfc(v) for v in value]
+    if isinstance(value, dict):
+        return {_nfc(k): _nfc(v) for k, v in value.items()}
+    return value
+
+
+def canonical_bytes(value: Any) -> bytes:
+    """Sorted keys, no whitespace, literal UTF-8, NFC strings; integers only (no floats in R0 contracts)."""
+    return json.dumps(_nfc(value), ensure_ascii=False, separators=(",", ":"), sort_keys=True, allow_nan=False).encode()
+
+
+def canonical_scene(scene: dict[str, Any]) -> dict[str, Any]:
+    out = dict(scene)
+    out["entities"] = sorted(scene["entities"], key=lambda e: e["id"])
+    out["routes"] = sorted(scene["routes"], key=lambda r: r["id"])
+    out["measurement_sources"] = sorted(
+        ({"field_path": m["field_path"], "source": m["source"]} for m in scene["measurement_sources"]),
+        key=lambda m: m["field_path"],
+    )
+    return out
+
+
+def scene_hash(scene: dict[str, Any]) -> str:
+    return hashlib.sha256(canonical_bytes(canonical_scene(scene))).hexdigest()
+
+
+def canonical_evidence(scene: dict[str, Any], route_id: str, result: dict[str, Any]) -> dict[str, Any]:
+    violation = result["first_violation"]
+    if violation is not None:
+        violation = dict(violation, model_margin_mm=MARGIN_MM, message_key=MESSAGE_KEYS[violation["rule_code"]])
+    return {
+        "schema_version": "1.0.0",
+        "scene_id": scene["scene_id"],
+        "scene_revision": scene["revision"],
+        "scene_hash": scene_hash(scene),
+        "route_id": route_id,
+        "catalog_version": scene["catalog_version"],
+        "evaluator_version": EVALUATOR_VERSION,
+        "outcome": result["outcome"],
+        "route_length_mm": result["route_length_mm"],
+        "first_violation": violation,
+        "assumptions": scene["assumptions"],
+        "validation_errors": [],
+    }
+
+
+def build_canonical_fixture(catalog: dict[str, dict[str, Any]]) -> dict[str, Any]:
+    scenes = {}
+    for path in sorted((FIXTURES / "scenes" / "valid").glob("*.json")):
+        scenes[path.name] = scene_hash(load_strict(path))
+    evidence = {}
+    for case in load_strict(FIXTURES / "evaluation" / "expectations.json")["cases"]:
+        scene = load_strict(FIXTURES / case["scene"])
+        result = reference_evaluate(scene, case["route_id"], catalog)
+        evidence[case["id"]] = hashlib.sha256(canonical_bytes(canonical_evidence(scene, case["route_id"], result))).hexdigest()
+    f01 = load_strict(FIXTURES / "scenes" / "valid" / "f01_direct_blocked.json")
+    return {
+        "description": "Cross-runtime canonical bytes/hashes (technical-spec S09.1). Produced by the Python reference "
+        "serializer in scripts/check_contracts.py and asserted independently by Tryscape.Core EditMode tests. "
+        "Agreement between two implementations, not an independent derivation of correctness.",
+        "serializer_version": SERIALIZER_VERSION,
+        "evaluator_version": EVALUATOR_VERSION,
+        "f01_canonical_scene": canonical_bytes(canonical_scene(f01)).decode(),
+        "scene_hashes": scenes,
+        "evidence_hashes": evidence,
+    }
+
+
 # --------------------------------------------------------------------------- runner
 
 
@@ -350,7 +439,7 @@ class Report:
 def fixture_files() -> Iterator[tuple[str, Path]]:
     for path in sorted(FIXTURES.rglob("*.json")):
         rel = path.relative_to(FIXTURES).as_posix()
-        if path.name.startswith("_") or rel.startswith("evaluation/"):
+        if path.name.startswith("_") or rel.startswith(("evaluation/", "canonical/")):
             continue  # metadata/expectation files, loaded explicitly below
         yield rel, path
 
@@ -409,6 +498,25 @@ def main() -> int:
             reference_evaluate(reordered, case["route_id"], catalog) == got,
             f"{case['id']}: result depends on entity ordering",
         )
+
+    # Canonical serializer cross-runtime fixture
+    canonical_path = FIXTURES / "canonical" / "hashes.json"
+    built = build_canonical_fixture(catalog)
+    if "--write-canonical" in sys.argv[1:]:
+        canonical_path.parent.mkdir(exist_ok=True)
+        canonical_path.write_text(json.dumps(built, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        print(f"wrote {canonical_path.relative_to(ROOT)}")
+    pinned = load_strict(canonical_path) if canonical_path.exists() else None
+    report.check(pinned is not None, "fixtures/canonical/hashes.json missing (run with --write-canonical)")
+    if pinned is not None:
+        for key in ("serializer_version", "evaluator_version", "f01_canonical_scene"):
+            report.check(pinned.get(key) == built[key], f"canonical {key} differs from pinned value")
+        for group in ("scene_hashes", "evidence_hashes"):
+            report.check(pinned.get(group) == built[group], f"canonical {group} differ from pinned values")
+        shuffled = dict(f01 := load_strict(FIXTURES / "scenes" / "valid" / "f01_direct_blocked.json"),
+                        entities=list(reversed(f01["entities"])), routes=list(reversed(f01["routes"])))
+        report.check(scene_hash(shuffled) == built["scene_hashes"]["f01_direct_blocked.json"],
+                     "scene hash depends on entity/route array order")
 
     for failure in report.failures:
         print(f"FAIL {failure}")

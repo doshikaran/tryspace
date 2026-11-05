@@ -34,9 +34,9 @@ for test in BootstrapRigTracksSimulatedHands InteractionSdkHandGrabSampleTracksS
   results="$out/xrsim-$test.xml"
   rm -f "$results"
   XR_RUNTIME_JSON="$runtime_json" XR_SELECTED_RUNTIME_JSON="$runtime_json" META_XRSIM_CONFIG_JSON="$config" \
-    "$root/scripts/unity_batch.sh" "xrsim-$test" "Saving results to" -- \
+    "$root/scripts/unity_batch.sh" "xrsim-$test" "Saving results to" --artifact "$results" -- \
     -batchmode -projectPath "$root/app-unity" -runTests -testPlatform PlayMode \
-    -testFilter "Tryscape.Tests.PlayMode.XR.SimulatorSmokeTests.$test" -testResults "$results" || true
+    -testFilter "Tryscape.Tests.PlayMode.XR.SimulatorSmokeTests.$test" -testResults "$results" || status=1
   grep -h "\[Tryscape\]\[XRSIM\]" "$out/xrsim-$test.log" || true
   python3 "$root/scripts/check_test_results.py" "$results" --min-tests 1 --no-skips || status=1
 done

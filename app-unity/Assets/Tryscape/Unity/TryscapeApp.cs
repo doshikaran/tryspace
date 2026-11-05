@@ -1,7 +1,10 @@
 using System;
+using System.Text;
 using Tryscape.Application.Editing;
+using Tryscape.Application.Rehearsal;
 using Tryscape.Content.MovingDay;
 using Tryscape.Core.Commands;
+using Tryscape.Core.Evaluation;
 using Tryscape.Core.Model;
 using Tryscape.Unity.Experience;
 using Tryscape.Unity.Presentation;
@@ -19,8 +22,10 @@ namespace Tryscape.Unity
     /// <summary>
     /// Composition root (S04). Owns the pure-core session and wires it to presentation and input. Holds no domain
     /// rules itself: every committed change goes through <see cref="EditingSession"/> commands.
-    /// Phase 1 scope: hands-only creation from the Moving Day template, select, drag, rotate, route choice,
-    /// undo/redo/reset, tabletop zoom/recenter. Voice creation, evaluation and saving are not implemented yet.
+    /// Scope: hands-only creation from the Moving Day template, select, drag, rotate, route choice, undo/redo/reset,
+    /// tabletop zoom/recenter (Phase 1), and local rehearsal: evaluate the active route with the core evaluator,
+    /// replay it, highlight the modelled contact, explain it and mark it stale after edits (Phase 2). Voice creation,
+    /// comparison and saving are not implemented yet.
     /// </summary>
     public sealed class TryscapeApp : MonoBehaviour, IDragHost
     {
@@ -28,8 +33,13 @@ namespace Tryscape.Unity
         [SerializeField] PlacementGhost _ghost;
         [SerializeField] PanelController _panel;
         [SerializeField] TabletopController _tabletop;
+        [SerializeField] ResultHighlight _highlight;
 
         readonly IIdGenerator _ids = new RandomIdGenerator();
+        readonly IUtcClock _clock = new SystemUtcClock();
+        RehearsalSession _rehearsal;
+        PlaybackController _playback;
+        bool _showDetails;
         Catalog _catalog;
         EditingSession _session;
         DragController _drag;
@@ -48,14 +58,22 @@ namespace Tryscape.Unity
         public event Action StateChanged;
 
         public DragController Drag => _drag;
+        public RehearsalSession Rehearsal => _rehearsal;
+        public RehearsalRun LatestRun => _rehearsal?.Latest;
+        public bool IsResultStale => _rehearsal != null && _rehearsal.IsLatestStale;
+        public PlaybackController Playback => _playback;
+        public ResultHighlight Highlight => _highlight;
+        public bool ShowingDetails => _showDetails;
         public RoomSpec Room => _session?.Current.Room;
 
-        public void Configure(ScenePresenter presenter, PlacementGhost ghost, PanelController panel, TabletopController tabletop)
+        public void Configure(ScenePresenter presenter, PlacementGhost ghost, PanelController panel, TabletopController tabletop,
+            ResultHighlight highlight = null)
         {
             _presenter = presenter;
             _ghost = ghost;
             _panel = panel;
             _tabletop = tabletop;
+            _highlight = highlight;
         }
 
         void Awake()
@@ -63,6 +81,25 @@ namespace Tryscape.Unity
             _catalog = MovingDayPack.CreateCatalog();
             if (_ghost != null)
                 _ghost.Hide();
+            if (_presenter != null)
+            {
+                _playback = _presenter.GetComponent<PlaybackController>();
+                if (_playback == null) // Unity null check; '??' is unsafe for UnityEngine.Object
+                    _playback = _presenter.gameObject.AddComponent<PlaybackController>();
+                _playback.Finished += OnPlaybackFinished;
+                if (_highlight == null)
+                {
+                    var go = new GameObject("Result Highlight");
+                    go.transform.SetParent(_presenter.transform, false);
+                    _highlight = go.AddComponent<ResultHighlight>();
+                }
+            }
+        }
+
+        void OnDestroy()
+        {
+            if (_playback != null)
+                _playback.Finished -= OnPlaybackFinished;
         }
 
         void Start()
@@ -84,6 +121,7 @@ namespace Tryscape.Unity
         public void ShowWelcome()
         {
             CancelDrag();
+            if (_playback != null) _playback.Pause();
             Mode = AppMode.Welcome;
             SetStatus(_session == null
                 ? "Welcome. Choose how to create a rehearsal."
@@ -137,9 +175,13 @@ namespace Tryscape.Unity
                 _session.Changed -= OnSessionChanged;
                 _session.Rejected -= OnSessionRejected;
             }
+            if (_playback != null) _playback.Stop(); // the previous room's views are already gone; nothing to re-render
+            if (_highlight != null) _highlight.Hide();
             _session = new EditingSession(core, _ids);
             _session.Changed += OnSessionChanged;
             _session.Rejected += OnSessionRejected;
+            _rehearsal = new RehearsalSession(_session, _ids, _clock);
+            _showDetails = false;
             _drag = new DragController(_session);
             _selected = Guid.Empty;
             foreach (var view in _presenter.Views.Values)
@@ -150,7 +192,7 @@ namespace Tryscape.Unity
             }
             Mode = AppMode.Editing;
             SetStatus($"Created a {scene.Room.WidthMm / 1000.0:0.0#} x {scene.Room.DepthMm / 1000.0:0.0#} m example room. " +
-                      "Grab the console table to move it.");
+                      "Press Rehearse to check the route, or grab the console table to move it.");
             return true;
         }
 
@@ -213,6 +255,98 @@ namespace Tryscape.Unity
             return _session.SelectRoute(next);
         }
 
+        // ---- Rehearsal (local evaluation; no network or provider) ----
+
+        /// <summary>Evaluates the live scene's active route, then replays it. The result is final before playback.</summary>
+        public RehearsalRun Rehearse()
+        {
+            if (!EnsureEditing())
+                return null;
+            CancelDrag();
+            StopReplay();
+            var run = _rehearsal.Rehearse();
+            if (run.CanReplay && _presenter.Views.TryGetValue(run.Route.PayloadEntityId, out var payloadView))
+                _playback.Begin(run.CreateTimeline(), payloadView.transform, run.Scene.Room);
+            var explanation = Explanation.For(run);
+            SetStatus($"{explanation.Headline}. {(run.CanReplay ? "Replaying at an illustrative speed." : explanation.Action)}");
+            return run;
+        }
+
+        /// <summary>Pause, resume, or replay the latest current run from the start.</summary>
+        public void TogglePlayback()
+        {
+            if (!EnsureEditing())
+                return;
+            var run = LatestRun;
+            if (run == null || IsResultStale || !run.CanReplay)
+            {
+                SetStatus(run == null ? "Rehearse first." : IsResultStale ? "The scene changed. Rehearse again to replay." : "This result cannot be replayed.");
+                return;
+            }
+            if (!_playback.HasTimeline && _presenter.Views.TryGetValue(run.Route.PayloadEntityId, out var view))
+            {
+                _playback.Begin(run.CreateTimeline(), view.transform, run.Scene.Room);
+                if (_highlight != null) _highlight.Hide();
+            }
+            else if (_playback.IsPlaying)
+                _playback.Pause();
+            else
+            {
+                if (_playback.IsFinished)
+                    if (_highlight != null) _highlight.Hide();
+                _playback.Resume();
+            }
+            Changed();
+        }
+
+        public void ToggleDetails()
+        {
+            _showDetails = !_showDetails;
+            Changed();
+        }
+
+        /// <summary>Result card text: explanation layers, stale indicator and (optionally) model details.</summary>
+        public string ResultText
+        {
+            get
+            {
+                var run = LatestRun;
+                if (run == null)
+                    return _session == null ? "" : "Not rehearsed yet. Press Rehearse to check the selected route.";
+                var e = Explanation.For(run);
+                var text = new StringBuilder();
+                if (IsResultStale)
+                    text.Append($"OUT OF DATE - result for revision {run.Evidence.SceneRevision}; scene is now revision {_session.Current.Revision}. Rehearse again.\n");
+                text.Append(e.Headline).Append(" - ").Append(run.Route?.Label ?? run.Evidence.RouteId).Append('\n');
+                text.Append(e.Observed).Append(' ').Append(e.Reason).Append('\n');
+                text.Append(e.Action).Append('\n');
+                if (_showDetails)
+                    text.Append($"Model margin {Tryscape.Core.Validation.ModelParameters.PayloadMarginMm} mm per side. {Explanation.Scope} " +
+                                $"Playback speed is illustrative. Evaluator {run.Evidence.EvaluatorVersion}, revision {run.Evidence.SceneRevision}, " +
+                                $"scene {run.Evidence.SceneHash?.Substring(0, 8) ?? "n/a"}.");
+                else
+                    text.Append(Explanation.Scope);
+                return text.ToString();
+            }
+        }
+
+        void OnPlaybackFinished()
+        {
+            var run = LatestRun;
+            if (run != null && !IsResultStale && run.Evidence.FirstViolation != null)
+                if (_highlight != null) _highlight.Show(run, _catalog);
+            Changed();
+        }
+
+        void StopReplay()
+        {
+            var hadTimeline = _playback != null && _playback.HasTimeline;
+            if (_playback != null) _playback.Stop();
+            if (_highlight != null) _highlight.Hide();
+            if (hadTimeline && _session != null)
+                _presenter.Render(_session.Current); // put the payload back at its committed start
+        }
+
         public CommandResult Undo() => EnsureEditing() ? _session.Undo() : null;
         public CommandResult Redo() => EnsureEditing() ? _session.Redo() : null;
         public CommandResult ResetScene() => EnsureEditing() ? _session.Reset() : null;
@@ -221,6 +355,7 @@ namespace Tryscape.Unity
 
         public void OnDragStarted(EntityView view)
         {
+            StopReplay();
             Select(view.EntityId);
         }
 
@@ -278,8 +413,9 @@ namespace Tryscape.Unity
 
         void OnSessionChanged(SceneSpec scene, CommandResult result)
         {
+            StopReplay();
             _presenter.Render(scene);
-            SetStatus(DescribeAccepted(scene));
+            SetStatus(DescribeAccepted(scene) + (LatestRun != null ? " The last result is out of date." : ""));
         }
 
         void OnSessionRejected(SceneCommand command, CommandResult result)

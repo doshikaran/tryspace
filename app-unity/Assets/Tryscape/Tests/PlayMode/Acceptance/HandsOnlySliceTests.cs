@@ -5,6 +5,8 @@ using NUnit.Framework;
 using Oculus.Interaction;
 using Tryscape.Application.Editing;
 using Tryscape.Content.MovingDay;
+using Tryscape.Core.Evaluation;
+using Tryscape.Core.Geometry;
 using Tryscape.Core.Model;
 using Tryscape.Unity;
 using Tryscape.Unity.Experience;
@@ -34,6 +36,7 @@ namespace Tryscape.Tests.PlayMode.Acceptance
             "WidthPlusFine", "WidthPlus", "DepthMinus", "DepthMinusFine", "DepthPlusFine", "DepthPlus",
             "ObstructionCenter", "ObstructionSouth", "RouteDirect", "RouteNorth", "ConfirmCreate", "BackToWelcome",
             "Rotate", "ToggleRoute", "Undo", "Redo", "Reset", "ZoomOut", "ZoomIn", "Recenter", "Menu",
+            "Rehearse", "PlayPause", "Details",
         };
 
         GameObject _root;
@@ -326,6 +329,125 @@ namespace Tryscape.Tests.PlayMode.Acceptance
             Assert.AreEqual(5500, _app.Session.Current.Room.DepthMm);
             Assert.AreEqual(1, _app.Presenter.RoomRoot.parent.Cast<Transform>().Count(t => t.name == "Room"),
                 "the previous room is disposed after the new one commits");
+        }
+        // ---------------------------------------------------------------- Phase 2: rehearse, replay, explain
+
+        EntityView Sofa => _app.Presenter.Views.Values.Single(v => v.Role == EntityRole.Payload);
+
+        void AssertSofaAt(int xMm, int zMm, string message)
+        {
+            var (x, z) = ModelSpaceMapping.ToLocal(_app.Session.Current.Room, xMm, zMm);
+            var p = Sofa.transform.localPosition;
+            Assert.That(Vector2.Distance(new Vector2(p.x, p.z), new Vector2(x, z)), Is.LessThan(1e-4f), $"{message}: sofa at {p}");
+        }
+
+        [UnityTest]
+        public IEnumerator RehearseExplainsTheObstructionAndAHandMoveClearsIt()
+        {
+            yield return CreateExample();
+            _panel.Press("Rehearse");
+            var first = _app.LatestRun;
+            Assert.IsNotNull(first, _app.Status);
+            Assert.AreEqual(EvaluationOutcome.BlockedInModel, first.Evidence.Outcome);
+            Assert.AreEqual(Console.EntityId, first.Evidence.FirstViolation.EntityIds.Single());
+            Assert.IsTrue(_app.Playback.IsPlaying, "playback starts after the result is fixed");
+            StringAssert.Contains("Blocked in this model", _app.ResultText);
+            StringAssert.Contains("console table obstructs", _app.ResultText);
+            StringAssert.Contains("Height, turning and lifting were not assessed", _app.ResultText);
+
+            _app.Playback.Seek(1000);
+            Assert.IsTrue(_app.Playback.IsFinished);
+            AssertSofaAt(1275, 2500, "blocked playback stops at the modelled contact centre, not inside the console");
+            Assert.IsTrue(_app.Highlight.IsShown);
+            Assert.AreEqual(Console.EntityId, _app.Highlight.ShownBlocker);
+            Assert.AreEqual((Rational.FromInteger(1275), Rational.FromInteger(2500)), _app.Highlight.ShownContact);
+
+            yield return DragConsole(RightHand, World(2500, 2500), World(2512, 790));
+            Assert.AreEqual(new ModelPose(2500, 800, 0), ConsolePose, _app.Status);
+            Assert.IsTrue(_app.IsResultStale, "the edit invalidates the live result");
+            StringAssert.Contains("OUT OF DATE", _app.ResultText);
+            Assert.IsFalse(_app.Highlight.IsShown, "stale contact highlight is removed");
+            AssertSofaAt(1000, 2500, "the payload returns to its committed start after an edit");
+            _panel.Press("PlayPause");
+            Assert.IsFalse(_app.Playback.HasTimeline, "a stale result cannot be replayed as if current");
+
+            _panel.Press("Rehearse");
+            var cleared = _app.LatestRun;
+            Assert.AreEqual(EvaluationOutcome.ClearInModel, cleared.Evidence.Outcome);
+            Assert.AreEqual(1, cleared.Evidence.SceneRevision);
+            StringAssert.Contains("Clear in this model", _app.ResultText);
+            _app.Playback.Seek(1000);
+            AssertSofaAt(4000, 3800, "clear playback reaches the destination");
+            Assert.IsFalse(_app.Highlight.IsShown);
+
+            _panel.Press("Undo");
+            _panel.Press("Rehearse");
+            Assert.AreEqual(first.Evidence.FirstViolation, _app.LatestRun.Evidence.FirstViolation, "undo restores the original constraint outcome");
+            Assert.AreEqual(EvaluationOutcome.BlockedInModel, first.Evidence.Outcome, "earlier runs stay immutable");
+        }
+
+        [UnityTest]
+        public IEnumerator MovingTheConsoleNorthBlocksTheNorthernRoute()
+        {
+            yield return CreateExample();
+            yield return DragConsole(RightHand, World(2500, 2500), World(2500, 4000));
+            Assert.AreEqual(new ModelPose(2500, 4000, 0), ConsolePose, _app.Status);
+            _panel.Press("ToggleRoute");
+            Assert.AreEqual(MovingDayPack.NorthRouteId, _app.Session.Current.ActiveRouteId);
+            _panel.Press("Rehearse");
+            var v = _app.LatestRun.Evidence.FirstViolation;
+            Assert.IsNotNull(v, "F04: the moved console blocks the Northern approach");
+            Assert.AreEqual(1, v.SegmentIndex);
+            Assert.AreEqual(Console.EntityId, v.EntityIds.Single());
+            _panel.Press("ToggleRoute");
+            _panel.Press("Rehearse");
+            Assert.AreEqual(EvaluationOutcome.ClearInModel, _app.LatestRun.Evidence.Outcome, "Direct stays clear");
+        }
+
+        [UnityTest]
+        public IEnumerator TabletopZoomAndRecentreDoNotChangeEvaluation()
+        {
+            yield return CreateExample();
+            _panel.Press("Rehearse");
+            var before = _app.LatestRun.Evidence;
+            _panel.Press("ZoomIn");
+            _panel.Press("ZoomIn");
+            _tabletop.transform.position += new Vector3(-0.25f, 0.05f, 0.3f);
+            _panel.Press("Recenter");
+            _panel.Press("ZoomOut");
+            yield return null;
+            Assert.IsFalse(_app.IsResultStale, "presentation changes do not create a revision");
+            _panel.Press("Rehearse");
+            CollectionAssert.AreEqual(before.CanonicalBytes(), _app.LatestRun.Evidence.CanonicalBytes(),
+                "identical deterministic evidence after zoom/recentre");
+            _app.Playback.Seek(1000);
+            AssertSofaAt(1275, 2500, "stop position is in model space whatever the tabletop scale");
+        }
+
+        [UnityTest]
+        public IEnumerator RealFramePlaybackStopsAtTheContactAndCanBePausedAndReplayed()
+        {
+            yield return CreateExample();
+            _panel.Press("Rehearse");
+            Assert.AreEqual(1.1, _app.Playback.DurationSeconds, 1e-9, "22 ticks at 20 Hz");
+            yield return null;
+            _panel.Press("PlayPause"); // pause
+            Assert.IsFalse(_app.Playback.IsPlaying);
+            var pausedAt = _app.Playback.ElapsedSeconds;
+            yield return null;
+            yield return null;
+            Assert.AreEqual(pausedAt, _app.Playback.ElapsedSeconds, "paused playback does not advance");
+            _panel.Press("PlayPause"); // resume
+            var deadline = Time.realtimeSinceStartup + 10f;
+            while (!_app.Playback.IsFinished && Time.realtimeSinceStartup < deadline)
+                yield return null;
+            Assert.IsTrue(_app.Playback.IsFinished, "playback finished through real frame updates");
+            AssertSofaAt(1275, 2500, "frame-driven playback stops at the same exact contact centre");
+            Assert.IsTrue(_app.Highlight.IsShown);
+
+            _panel.Press("PlayPause"); // replay from start
+            Assert.IsTrue(_app.Playback.IsPlaying);
+            Assert.IsFalse(_app.Highlight.IsShown, "highlight waits for the replay to reach the contact");
         }
     }
 }

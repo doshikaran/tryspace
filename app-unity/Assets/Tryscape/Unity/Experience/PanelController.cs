@@ -21,6 +21,7 @@ namespace Tryscape.Unity.Experience
 
         public const string HelpText =
             "Grab the console table with a pinch or ray to move it. Release on a clear spot to place it. " +
+            "Rehearse checks the selected route in the model and replays it. " +
             "Results are illustrative: floor footprint only; height, turning and lifting are not assessed.";
 
         [SerializeField] GameObject _welcomeSection;
@@ -29,14 +30,16 @@ namespace Tryscape.Unity.Experience
         [SerializeField] Text _status;
         [SerializeField] Text _draftSummary;
         [SerializeField] Text _sceneSummary;
+        [SerializeField] Text _resultCard;
         [SerializeField] List<Button> _buttons = new List<Button>();
 
         TryscapeApp _app;
         readonly Dictionary<string, Button> _byName = new Dictionary<string, Button>(StringComparer.Ordinal);
 
         public void Configure(GameObject welcome, GameObject create, GameObject edit, Text status, Text draftSummary,
-            Text sceneSummary, IEnumerable<Button> buttons)
+            Text sceneSummary, IEnumerable<Button> buttons, Text resultCard = null)
         {
+            _resultCard = resultCard;
             _welcomeSection = welcome;
             _createSection = create;
             _editSection = edit;
@@ -101,6 +104,9 @@ namespace Tryscape.Unity.Experience
                 case "Recenter": _app.Tabletop?.Recenter(); break;
                 case "Menu": _app.ShowWelcome(); break;
                 case "ResumeEditing": _app.ResumeEditing(); break;
+                case "Rehearse": _app.Rehearse(); break;
+                case "PlayPause": _app.TogglePlayback(); break;
+                case "Details": _app.ToggleDetails(); break;
                 default: Debug.LogWarning($"[Tryscape] Unknown panel button '{id}'"); break;
             }
         }
@@ -136,6 +142,13 @@ namespace Tryscape.Unity.Experience
             if (_sceneSummary != null)
                 _sceneSummary.text = session == null ? "" :
                     $"Revision {session.Current.Revision}  |  Route: {session.Current.FindRoute(session.Current.ActiveRouteId)?.Label}";
+            if (_resultCard != null)
+                _resultCard.text = _app.ResultText;
+            SetLabel("Rehearse", _app.LatestRun != null && _app.IsResultStale ? "Rehearse again" : "Rehearse");
+            var playback = _app.Playback;
+            SetLabel("PlayPause", playback != null && playback.IsPlaying ? "Pause" : playback != null && playback.HasTimeline && !playback.IsFinished ? "Resume" : "Replay");
+            SetInteractable("PlayPause", _app.LatestRun != null && !_app.IsResultStale && _app.LatestRun.CanReplay);
+            SetLabel("Details", _app.ShowingDetails ? "Less" : "Details");
             SetInteractable("Undo", session != null && session.CanUndo);
             SetInteractable("Redo", session != null && session.CanRedo);
             SetInteractable("ResumeEditing", session != null);
@@ -147,6 +160,20 @@ namespace Tryscape.Unity.Experience
             SetInteractable("DepthMinusFine", d.RoomDepthMm > 5000);
             SetInteractable("DepthPlus", d.RoomDepthMm < 8000);
             SetInteractable("DepthPlusFine", d.RoomDepthMm < 8000);
+        }
+
+        /// <summary>Current visible label of a button (tests read what a user would read).</summary>
+        public string LabelOf(string id) =>
+            _byName.TryGetValue(id, out var b) && b.GetComponentInChildren<Text>(true) is Text t && t != null ? t.text : null;
+
+        void SetLabel(string id, string label)
+        {
+            if (_byName.TryGetValue(id, out var button))
+            {
+                var text = button.GetComponentInChildren<Text>(true);
+                if (text != null && text.text != label)
+                    text.text = label;
+            }
         }
 
         void SetInteractable(string id, bool value)
