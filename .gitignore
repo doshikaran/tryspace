@@ -69,3 +69,12 @@ services/api/models/
 /recordings/
 services/api/var/
 artifacts/
+
+# Imported Meta/Unity package samples (re-importable; Meta SDK licence; not part of the Tryscape build)
+app-unity/Assets/Samples/
+app-unity/Assets/Samples.meta
+
+# Meta DevAgent runtime settings: Meta's editor writes a machine LAN address and Remote Agent access token into
+# this Resources asset on load. Never commit it (regenerated per machine; stripped from builds by StripDevAgentCredentials).
+app-unity/Assets/Resources/DevAgentSettings.asset
+app-unity/Assets/Resources/DevAgentSettings.asset.meta
