@@ -113,6 +113,7 @@ namespace Tryscape.Editor
             Check(!PlayerSettings.GetUseDefaultGraphicsAPIs(BuildTarget.Android) && apis.Length == 1 &&
                   apis[0] == GraphicsDeviceType.Vulkan, "Vulkan only");
             Check(PlayerSettings.colorSpace == ColorSpace.Linear, "linear color space");
+            Check(PlayerSettings.defaultInterfaceOrientation == UIOrientation.LandscapeLeft, "landscape-left orientation");
             Check(OVRProjectConfig.CachedProjectConfig.handTrackingSupport ==
                   OVRProjectConfig.HandTrackingSupport.ControllersAndHands, "hand tracking enabled");
             foreach (var group in new[] { BuildTargetGroup.Android, BuildTargetGroup.Standalone })
@@ -141,6 +142,7 @@ namespace Tryscape.Editor
             PlayerSettings.companyName = "Tryscape";
             PlayerSettings.productName = "Tryscape";
             PlayerSettings.colorSpace = ColorSpace.Linear;
+            PlayerSettings.defaultInterfaceOrientation = UIOrientation.LandscapeLeft;
 
             var android = NamedBuildTarget.Android;
             PlayerSettings.SetApplicationIdentifier(android, ApplicationId);
