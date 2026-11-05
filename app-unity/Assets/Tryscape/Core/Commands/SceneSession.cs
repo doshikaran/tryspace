@@ -22,10 +22,10 @@ namespace Tryscape.Core.Commands
         readonly Dictionary<Guid, CommandResult> _resultsById = new Dictionary<Guid, CommandResult>();
         readonly Queue<Guid> _resultOrder = new Queue<Guid>();
 
-        SceneSession(SceneSpec confirmed, Catalog catalog)
+        SceneSession(SceneSpec confirmed, SceneSpec current, Catalog catalog)
         {
             Confirmed = confirmed;
-            Current = confirmed;
+            Current = current;
             _catalog = catalog;
         }
 
@@ -48,8 +48,39 @@ namespace Tryscape.Core.Commands
             if (catalog == null)
                 throw new ArgumentNullException(nameof(catalog));
             validation = SceneValidator.Validate(confirmed, catalog);
-            session = validation.IsValid ? new SceneSession(confirmed, catalog) : null;
+            session = validation.IsValid ? new SceneSession(confirmed, confirmed, catalog) : null;
             return session != null;
+        }
+
+        /// <summary>
+        /// Reopens a saved project (S12): the confirmed creation baseline stays the Reset target, and the current scene keeps
+        /// its saved revision. Both must validate, describe the same scene and project, and the current revision cannot
+        /// precede the baseline. Undo/redo history is not persisted, so a reopened session starts without it.
+        /// </summary>
+        public static bool TryRestore(SceneSpec confirmed, SceneSpec current, Catalog catalog, out SceneSession session,
+            out ValidationResult validation)
+        {
+            if (confirmed == null)
+                throw new ArgumentNullException(nameof(confirmed));
+            if (current == null)
+                throw new ArgumentNullException(nameof(current));
+            if (catalog == null)
+                throw new ArgumentNullException(nameof(catalog));
+            session = null;
+            validation = SceneValidator.Validate(confirmed, catalog);
+            if (!validation.IsValid)
+                return false;
+            validation = SceneValidator.Validate(current, catalog);
+            if (!validation.IsValid)
+                return false;
+            if (current.SceneId != confirmed.SceneId || current.ProjectId != confirmed.ProjectId ||
+                current.Revision < confirmed.Revision)
+            {
+                validation = new ValidationResult(new[] { new ValidationError("current_scene", "baseline_mismatch") });
+                return false;
+            }
+            session = new SceneSession(confirmed, current, catalog);
+            return true;
         }
 
         public CommandResult Execute(CommandEnvelope envelope)

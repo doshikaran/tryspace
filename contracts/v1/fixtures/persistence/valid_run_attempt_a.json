@@ -1,0 +1,163 @@
+{
+  "schema_version": "1.0.0",
+  "serializer_version": "1.0.0",
+  "run_id": "60000000-0000-4000-8000-00000000000a",
+  "project_id": "20000000-0000-4000-8000-000000000001",
+  "label": "Attempt A",
+  "saved_at": "2026-11-06T09:00:00Z",
+  "scene": {
+    "schema_version": "1.0.0",
+    "scene_id": "10000000-0000-4000-8000-000000000001",
+    "project_id": "20000000-0000-4000-8000-000000000001",
+    "scenario_pack_id": "moving_day",
+    "scenario_pack_version": "1.0.0",
+    "catalog_version": "1.0.0",
+    "revision": 0,
+    "room": {
+      "width_mm": 6000,
+      "depth_mm": 5000
+    },
+    "entities": [
+      {
+        "id": "30000000-0000-4000-8000-000000000001",
+        "catalog_id": "sofa_standard",
+        "role": "payload",
+        "pose": {
+          "x_mm": 1000,
+          "z_mm": 2500,
+          "yaw_deg": 0
+        },
+        "editable": false,
+        "label": "Delivery sofa"
+      },
+      {
+        "id": "30000000-0000-4000-8000-000000000002",
+        "catalog_id": "console_standard",
+        "role": "blocker",
+        "pose": {
+          "x_mm": 2500,
+          "z_mm": 2500,
+          "yaw_deg": 0
+        },
+        "editable": true,
+        "label": "Console table"
+      }
+    ],
+    "routes": [
+      {
+        "id": "direct",
+        "label": "Direct approach",
+        "payload_entity_id": "30000000-0000-4000-8000-000000000001",
+        "speed_mm_per_s": 250,
+        "waypoints": [
+          {
+            "x_mm": 1000,
+            "z_mm": 2500
+          },
+          {
+            "x_mm": 4000,
+            "z_mm": 2500
+          },
+          {
+            "x_mm": 4000,
+            "z_mm": 3800
+          }
+        ]
+      },
+      {
+        "id": "north_detour",
+        "label": "Northern approach",
+        "payload_entity_id": "30000000-0000-4000-8000-000000000001",
+        "speed_mm_per_s": 250,
+        "waypoints": [
+          {
+            "x_mm": 1000,
+            "z_mm": 2500
+          },
+          {
+            "x_mm": 1000,
+            "z_mm": 4000
+          },
+          {
+            "x_mm": 4000,
+            "z_mm": 4000
+          },
+          {
+            "x_mm": 4000,
+            "z_mm": 3800
+          }
+        ]
+      }
+    ],
+    "active_route_id": "direct",
+    "assumptions": [
+      {
+        "code": "illustrative_layout",
+        "text": "Prepared example; dimensions are not measurements of your home.",
+        "source": "template",
+        "requires_confirmation": false
+      },
+      {
+        "code": "upright_fixed_orientation",
+        "text": "The sofa remains upright at a fixed orientation; lifting and turning are not assessed.",
+        "source": "scenario_model",
+        "requires_confirmation": false
+      }
+    ],
+    "provenance": "illustrative",
+    "measurement_sources": []
+  },
+  "result": {
+    "schema_version": "1.0.0",
+    "scene_id": "10000000-0000-4000-8000-000000000001",
+    "scene_revision": 0,
+    "scene_hash": "ad5f51b932ad9229beefba0c0163edfb62e7ca6792223d74da8407be06110c0f",
+    "route_id": "direct",
+    "catalog_version": "1.0.0",
+    "evaluator_version": "1.0.0",
+    "outcome": "blocked_in_model",
+    "route_length_mm": 4300,
+    "first_violation": {
+      "rule_code": "blocker_intersection",
+      "entity_ids": [
+        "30000000-0000-4000-8000-000000000002"
+      ],
+      "segment_index": 0,
+      "entry_fraction": {
+        "numerator": 11,
+        "denominator": 120
+      },
+      "contact_center": {
+        "x_mm": {
+          "numerator": 1275,
+          "denominator": 1
+        },
+        "z_mm": {
+          "numerator": 2500,
+          "denominator": 1
+        }
+      },
+      "model_margin_mm": 25,
+      "message_key": "blocker_obstructs_route"
+    },
+    "assumptions": [
+      {
+        "code": "illustrative_layout",
+        "text": "Prepared example; dimensions are not measurements of your home.",
+        "source": "template",
+        "requires_confirmation": false
+      },
+      {
+        "code": "upright_fixed_orientation",
+        "text": "The sofa remains upright at a fixed orientation; lifting and turning are not assessed.",
+        "source": "scenario_model",
+        "requires_confirmation": false
+      }
+    ],
+    "validation_errors": [],
+    "run_id": "60000000-0000-4000-8000-00000000000a",
+    "created_at": "2026-11-06T09:00:00Z"
+  },
+  "evidence_hash": "15a01ae501238cd5342e5f0d58a0fbe47eaccf781cdb0ed57fc4150f2d19d2ec",
+  "content_hash": "a6de858b5e1e5a76171e4b6bbadbf329a10e27c9185ac8dc324e701559a2f750"
+}

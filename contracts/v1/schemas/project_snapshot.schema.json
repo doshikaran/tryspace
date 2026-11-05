@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://contracts.tryscape.invalid/v1/project_snapshot.schema.json",
+  "title": "Local project persistence v1.0.0",
+  "description": "R0 local snapshots (technical-spec S12). Written by the headset client into Application.persistentDataPath: projects/<uuid>/project.json, projects/<uuid>/runs/<uuid>.json and index.json. File names derive from validated UUIDs only. content_hash = SHA-256 of the S09.1 restricted canonical bytes of the document without its content_hash member (scenes written canonically: entities sorted by id, routes by id, measurement_sources by field_path). No audio, transcript-provider data, credentials or tokens are stored.",
+  "$defs": {
+    "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"},
+    "nullable_uuid": {"oneOf": [{"type": "null"}, {"$ref": "common.schema.json#/$defs/uuid"}]},
+    "project_snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "serializer_version", "project_id", "title", "created_at", "updated_at",
+        "confirmed_scene", "current_scene", "presentation", "attempts", "saved_run_ids", "content_hash"],
+      "properties": {
+        "schema_version": {"$ref": "common.schema.json#/$defs/schema_version_1_0_0"},
+        "serializer_version": {"$ref": "common.schema.json#/$defs/semver"},
+        "project_id": {"$ref": "common.schema.json#/$defs/uuid"},
+        "title": {"$ref": "common.schema.json#/$defs/label"},
+        "created_at": {"$ref": "common.schema.json#/$defs/utc_timestamp"},
+        "updated_at": {"$ref": "common.schema.json#/$defs/utc_timestamp"},
+        "confirmed_scene": {"$ref": "scene_spec.schema.json"},
+        "current_scene": {"$ref": "scene_spec.schema.json"},
+        "presentation": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["tabletop_zoom_step"],
+          "properties": {"tabletop_zoom_step": {"type": "integer", "minimum": 0, "maximum": 4}}
+        },
+        "attempts": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["a", "b"],
+          "properties": {"a": {"$ref": "#/$defs/nullable_uuid"}, "b": {"$ref": "#/$defs/nullable_uuid"}}
+        },
+        "saved_run_ids": {"type": "array", "maxItems": 20, "uniqueItems": true, "items": {"$ref": "common.schema.json#/$defs/uuid"}},
+        "content_hash": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "run_snapshot": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "serializer_version", "run_id", "project_id", "label", "saved_at", "scene", "result",
+        "evidence_hash", "content_hash"],
+      "properties": {
+        "schema_version": {"$ref": "common.schema.json#/$defs/schema_version_1_0_0"},
+        "serializer_version": {"$ref": "common.schema.json#/$defs/semver"},
+        "run_id": {"$ref": "common.schema.json#/$defs/uuid"},
+        "project_id": {"$ref": "common.schema.json#/$defs/uuid"},
+        "label": {"$ref": "common.schema.json#/$defs/label"},
+        "saved_at": {"$ref": "common.schema.json#/$defs/utc_timestamp"},
+        "scene": {"$ref": "scene_spec.schema.json"},
+        "result": {"$ref": "evaluation_result.schema.json"},
+        "evidence_hash": {"$ref": "#/$defs/sha256"},
+        "content_hash": {"$ref": "#/$defs/sha256"}
+      }
+    },
+    "project_index": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["schema_version", "projects", "content_hash"],
+      "properties": {
+        "schema_version": {"$ref": "common.schema.json#/$defs/schema_version_1_0_0"},
+        "projects": {
+          "type": "array",
+          "maxItems": 20,
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["project_id", "title", "updated_at", "run_count"],
+            "properties": {
+              "project_id": {"$ref": "common.schema.json#/$defs/uuid"},
+              "title": {"$ref": "common.schema.json#/$defs/label"},
+              "updated_at": {"$ref": "common.schema.json#/$defs/utc_timestamp"},
+              "run_count": {"type": "integer", "minimum": 0, "maximum": 20}
+            }
+          }
+        },
+        "content_hash": {"$ref": "#/$defs/sha256"}
+      }
+    }
+  }
+}

@@ -179,7 +179,7 @@ namespace Tryscape.Editor
             buttons.Add(Button(welcome, "CreateWithHands", "Create with hands", 0, 200, 440));
             buttons.Add(Button(welcome, "DescribeTyped", "Describe (typed, dev input)", 0, 130, 440));
             buttons.Add(Button(welcome, "SpeakSituation", "Describe with voice", 0, 60, 440));
-            buttons.Add(Button(welcome, "OpenSaved", "Open saved (unavailable)", 0, -10, 440));
+            buttons.Add(Button(welcome, "OpenSaved", "Open saved project", 0, -10, 440));
             buttons.Add(Button(welcome, "Help", "Help", 0, -80, 440));
             buttons.Add(Button(welcome, "ResumeEditing", "Resume editing", 0, -150, 440));
 
@@ -260,17 +260,41 @@ namespace Tryscape.Editor
             buttons.Add(Button(edit, "ZoomOut", "Smaller", -170, -20, 160));
             buttons.Add(Button(edit, "ZoomIn", "Larger", 0, -20, 160));
             buttons.Add(Button(edit, "Recenter", "Recenter", 170, -20, 160));
-            buttons.Add(Button(edit, "Menu", "Menu", -130, -90, 250));
-            buttons.Add(Button(edit, "Help", "Help", 130, -90, 250));
-            buttons.Add(Button(edit, "Rehearse", "Rehearse", -170, -160, 160));
-            buttons.Add(Button(edit, "PlayPause", "Replay", 0, -160, 160));
-            buttons.Add(Button(edit, "Details", "Details", 170, -160, 160));
+            buttons.Add(Button(edit, "Menu", "Menu", -195, -90, 120));
+            buttons.Add(Button(edit, "Save", "Save", -65, -90, 120));
+            buttons.Add(Button(edit, "KeepA", "Keep as A", 65, -90, 120));
+            buttons.Add(Button(edit, "KeepB", "Keep as B", 195, -90, 120));
+            buttons.Add(Button(edit, "Rehearse", "Rehearse", -195, -160, 120));
+            buttons.Add(Button(edit, "PlayPause", "Replay", -65, -160, 120));
+            buttons.Add(Button(edit, "Details", "Details", 65, -160, 120));
+            buttons.Add(Button(edit, "Compare", "Compare", 195, -160, 120));
             var result = Text(edit, "ResultCard", "", 18, FontStyle.Normal, new Vector2(0, -275), new Vector2(520, 150));
             result.alignment = TextAnchor.UpperLeft;
 
+            // Comparison: both retained attempts, changes and evidence-based explanation; inspect either one read-only.
+            var compare = Section(canvasGo.transform, "Compare");
+            var compareCard = Text(compare, "CompareCard", "", 17, FontStyle.Normal, new Vector2(0, 110), new Vector2(520, 300));
+            compareCard.alignment = TextAnchor.UpperLeft;
+            buttons.Add(Button(compare, "InspectA", "Inspect A", -175, -80, 160));
+            buttons.Add(Button(compare, "InspectB", "Inspect B", 0, -80, 160));
+            buttons.Add(Button(compare, "InspectLive", "Live scene", 175, -80, 160));
+            buttons.Add(Button(compare, "CompareReplay", "Replay attempt", -130, -145, 250));
+            buttons.Add(Button(compare, "CompareBack", "Back to editing", 130, -145, 250));
+
+            // Saved projects on this device: open or delete (two presses).
+            var projects = Section(canvasGo.transform, "Projects");
+            var projectsCard = Text(projects, "ProjectsCard", "", 20, FontStyle.Normal, new Vector2(0, 140), new Vector2(520, 200));
+            projectsCard.alignment = TextAnchor.UpperLeft;
+            buttons.Add(Button(projects, "ProjectPrev", "Previous", -130, 0, 250));
+            buttons.Add(Button(projects, "ProjectNext", "Next", 130, 0, 250));
+            buttons.Add(Button(projects, "ProjectOpen", "Open", -130, -65, 250));
+            buttons.Add(Button(projects, "ProjectDelete", "Delete", 130, -65, 250));
+            buttons.Add(Button(projects, "ProjectsBack", "Menu", 0, -130, 250));
+
             var controller = canvasGo.AddComponent<PanelController>();
             controller.Configure(welcome.gameObject, create.gameObject, edit.gameObject, status, draft, scene, buttons, result,
-                describe.gameObject, review.gameObject, reviewCard, input, voice.gameObject, voiceCard);
+                describe.gameObject, review.gameObject, reviewCard, input, voice.gameObject, voiceCard, compare.gameObject, compareCard,
+                projects.gameObject, projectsCard);
 
             var created = QuickActionsAPI.AddRayCanvasInteraction(canvasGo).Concat(QuickActionsAPI.AddPokeCanvasInteraction(canvasGo)).ToList();
             Debug.Log($"[Tryscape] Panel canvas interaction objects created={created.Count}");

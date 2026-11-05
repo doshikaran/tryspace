@@ -127,6 +127,12 @@ def schema_target(rel: str) -> str | None:
     if rel.startswith("commands/"):
         name = Path(rel).name
         return "command.schema.json#/$defs/" + ("command_result" if "_result_" in name else "command_envelope")
+    if rel.startswith("persistence/"):
+        name = Path(rel).name
+        for marker, definition in (("project", "project_snapshot"), ("run", "run_snapshot"), ("index", "project_index")):
+            if marker in name:
+                return "project_snapshot.schema.json#/$defs/" + definition
+        return None
     if rel.startswith("api/"):
         name = Path(rel).name
         for marker, definition in (
@@ -149,7 +155,8 @@ def expected_valid(rel: str) -> bool:
     name = Path(rel).name
     if name.startswith("invalid_"):
         return False
-    if name.startswith(("valid_", "shape_example_")) or rel.startswith("catalog/"):
+    # tampered_*: shape-valid by design; integrity (content hash) must fail, checked separately.
+    if name.startswith(("valid_", "shape_example_", "tampered_")) or rel.startswith("catalog/"):
         return True
     raise ValueError(f"fixture name does not declare validity: {rel}")
 
@@ -421,6 +428,89 @@ def build_canonical_fixture(catalog: dict[str, dict[str, Any]]) -> dict[str, Any
     }
 
 
+PERSISTENCE_TIMESTAMP = "2026-11-06T09:00:00Z"
+RUN_A = "60000000-0000-4000-8000-00000000000a"
+RUN_B = "60000000-0000-4000-8000-00000000000b"
+
+
+def stored_scene(scene: dict[str, Any]) -> dict[str, Any]:
+    """Persisted scene: canonical ordering, but measurement_sources keep confirmed_at (audit data)."""
+    out = canonical_scene(scene)
+    out["measurement_sources"] = sorted(scene["measurement_sources"], key=lambda m: m["field_path"])
+    return out
+
+
+def with_content_hash(doc: dict[str, Any]) -> dict[str, Any]:
+    body = {k: v for k, v in doc.items() if k != "content_hash"}
+    return dict(body, content_hash=hashlib.sha256(canonical_bytes(body)).hexdigest())
+
+
+def run_snapshot(scene: dict[str, Any], route_id: str, run_id: str, label: str, catalog: dict[str, Any]) -> dict[str, Any]:
+    evidence = canonical_evidence(scene, route_id, reference_evaluate(scene, route_id, catalog))
+    result = dict(evidence, run_id=run_id, created_at=PERSISTENCE_TIMESTAMP)
+    return with_content_hash(
+        {
+            "schema_version": "1.0.0",
+            "serializer_version": SERIALIZER_VERSION,
+            "run_id": run_id,
+            "project_id": scene["project_id"],
+            "label": label,
+            "saved_at": PERSISTENCE_TIMESTAMP,
+            "scene": stored_scene(scene),
+            "result": result,
+            "evidence_hash": hashlib.sha256(canonical_bytes(evidence)).hexdigest(),
+        }
+    )
+
+
+def build_persistence_fixtures(catalog: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    """S12 snapshot fixtures for the D03.6 journey: Attempt A = F01 Direct (blocked), Attempt B = F02 Direct (clear).
+
+    Produced by this second (Python) serializer and read by Tryscape.Infrastructure EditMode tests, so content and
+    evidence hashes are checked across runtimes. Outcomes come from the reference evaluator and agree with
+    evaluation/expectations.json (f01 direct blocked, f02 direct clear 4300 mm).
+    """
+    f01 = load_strict(FIXTURES / "scenes" / "valid" / "f01_direct_blocked.json")
+    f02 = load_strict(FIXTURES / "scenes" / "valid" / "f02_console_parked_south.json")
+    run_a = run_snapshot(f01, "direct", RUN_A, "Attempt A", catalog)
+    run_b = run_snapshot(f02, "direct", RUN_B, "Attempt B", catalog)
+    project = with_content_hash(
+        {
+            "schema_version": "1.0.0",
+            "serializer_version": SERIALIZER_VERSION,
+            "project_id": f01["project_id"],
+            "title": "Moving Day 6.0 x 5.0 m",
+            "created_at": PERSISTENCE_TIMESTAMP,
+            "updated_at": PERSISTENCE_TIMESTAMP,
+            "confirmed_scene": stored_scene(f01),
+            "current_scene": stored_scene(f02),
+            "presentation": {"tabletop_zoom_step": 2},
+            "attempts": {"a": RUN_A, "b": RUN_B},
+            "saved_run_ids": [RUN_A, RUN_B],
+        }
+    )
+    index = with_content_hash(
+        {
+            "schema_version": "1.0.0",
+            "projects": [
+                {"project_id": f01["project_id"], "title": "Moving Day 6.0 x 5.0 m", "updated_at": PERSISTENCE_TIMESTAMP, "run_count": 2}
+            ],
+        }
+    )
+    newer = dict(project, schema_version="2.0.0")
+    extra = dict(project, recording_wav="UklGRg==")
+    tampered = dict(run_a, result=dict(run_a["result"], outcome="clear_in_model", first_violation=None))
+    return {
+        "valid_project.json": project,
+        "valid_run_attempt_a.json": run_a,
+        "valid_run_attempt_b.json": run_b,
+        "valid_index.json": index,
+        "invalid_project_newer_major.json": newer,
+        "invalid_project_extra_field.json": extra,
+        "tampered_run_attempt_a.json": tampered,
+    }
+
+
 # --------------------------------------------------------------------------- runner
 
 
@@ -517,6 +607,23 @@ def main() -> int:
                         entities=list(reversed(f01["entities"])), routes=list(reversed(f01["routes"])))
         report.check(scene_hash(shuffled) == built["scene_hashes"]["f01_direct_blocked.json"],
                      "scene hash depends on entity/route array order")
+
+    # Persistence fixtures (S12): pinned output of the Python serializer, re-derived on every run.
+    persistence = build_persistence_fixtures(catalog)
+    pdir = FIXTURES / "persistence"
+    if "--write-persistence" in sys.argv[1:]:
+        pdir.mkdir(exist_ok=True)
+        for name, doc in persistence.items():
+            (pdir / name).write_text(json.dumps(doc, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        print(f"wrote {len(persistence)} persistence fixtures")
+    for name, doc in persistence.items():
+        path = pdir / name
+        report.check(path.exists() and load_strict(path) == doc, f"persistence/{name} differs from the serializer output")
+    tampered = persistence["tampered_run_attempt_a.json"]
+    report.check(
+        with_content_hash(tampered)["content_hash"] != tampered["content_hash"],
+        "tampered run must fail its content hash",
+    )
 
     # Interpretation expectations: structure and contract-valid expected intents (values are checked by backend tests)
     interp = load_strict(FIXTURES / "interpretation" / "moving_day_cases.json")

@@ -1,13 +1,17 @@
 using System;
+using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using Tryscape.Application.Creation;
 using Tryscape.Application.Editing;
+using Tryscape.Application.Persistence;
 using Tryscape.Application.Rehearsal;
 using Tryscape.Content.MovingDay;
 using Tryscape.Core.Commands;
 using Tryscape.Core.Evaluation;
 using Tryscape.Core.Model;
+using Tryscape.Infrastructure.Persistence;
 using Tryscape.Unity.Creation;
 using Tryscape.Unity.Experience;
 using Tryscape.Unity.Presentation;
@@ -32,6 +36,12 @@ namespace Tryscape.Unity
         /// <summary>Correcting a ready proposal's values with the hand parameter controls.</summary>
         CorrectingProposal,
         Editing,
+
+        /// <summary>Comparing retained Attempt A and Attempt B; one may be inspected read-only on the tabletop.</summary>
+        Comparing,
+
+        /// <summary>Local saved projects: open or delete.</summary>
+        Projects,
     }
 
     /// <summary>
@@ -59,6 +69,13 @@ namespace Tryscape.Unity
         bool _showDetails;
         Catalog _catalog;
         CreationCoordinator _creation;
+        readonly AttemptBook _attempts = new AttemptBook();
+        IProjectRepository _store;
+        string _projectCreatedAt;
+        AttemptSlot? _inspecting;
+        IReadOnlyList<ProjectListing> _projects = Array.Empty<ProjectListing>();
+        int _projectIndex;
+        bool _deleteArmed;
         VoiceRecorder _recorder;
         bool _audioConsentGiven;
         int _shownTenths = -1;
@@ -79,7 +96,8 @@ namespace Tryscape.Unity
         /// <summary>Raised whenever anything the panel shows may have changed.</summary>
         public event Action StateChanged;
 
-        public DragController Drag => _drag;
+        /// <summary>Null while an attempt snapshot is being inspected: snapshots are read-only.</summary>
+        public DragController Drag => _inspecting == null ? _drag : null;
         public RehearsalSession Rehearsal => _rehearsal;
         public RehearsalRun LatestRun => _rehearsal?.Latest;
         public bool IsResultStale => _rehearsal != null && _rehearsal.IsLatestStale;
@@ -98,6 +116,14 @@ namespace Tryscape.Unity
         public bool ProposalEdited => _proposed != null && !MovingDayProposals.Same(_proposed, Draft);
 
         public VoiceRecorder Recorder => _recorder;
+        public AttemptBook Attempts => _attempts;
+        public AttemptSlot? Inspecting => _inspecting;
+        public IReadOnlyList<ProjectListing> SavedProjects => _projects;
+        public int SelectedProjectIndex => _projectIndex;
+        public bool DeleteArmed => _deleteArmed;
+
+        /// <summary>Replaces local project storage (tests use a temporary directory).</summary>
+        public void UseProjectStore(IProjectRepository store) => _store = store ?? throw new ArgumentNullException(nameof(store));
 
         /// <summary>The user accepted the remote audio-processing notice in this app session (S10.5).</summary>
         public bool AudioConsentGiven => _audioConsentGiven;
@@ -153,6 +179,7 @@ namespace Tryscape.Unity
             UseProposalProvider(new BackendSceneProposalProvider(service, _catalog.CatalogVersion), null,
                 new BackendTranscriptionProvider(service));
             UseMicrophone(new UnityMicrophone());
+            _store = new ProjectStore(System.IO.Path.Combine(UnityEngine.Application.persistentDataPath, "tryscape"), _catalog);
             if (_ghost != null)
                 _ghost.Hide();
             if (_presenter != null)
@@ -210,6 +237,7 @@ namespace Tryscape.Unity
 
         public void ShowWelcome()
         {
+            InspectLive();
             CancelDrag();
             _recorder.Cancel();
             _creation.Cancel();
@@ -619,6 +647,17 @@ namespace Tryscape.Unity
                 Debug.LogError($"[Tryscape] scene failed validation before construction: {string.Join(", ", validation.Errors)}");
                 return false;
             }
+            if (!Activate(core))
+                return false;
+            _attempts.Clear(); // a newly created room is a new project
+            _projectCreatedAt = null;
+            return true;
+        }
+
+        /// <summary>Builds the session's current scene under staging, then switches state. On failure nothing changes.</summary>
+        bool Activate(SceneSession core)
+        {
+            var scene = core.Current;
             try
             {
                 _presenter.Build(scene, _catalog);
@@ -639,6 +678,7 @@ namespace Tryscape.Unity
             }
             if (_playback != null) _playback.Stop(); // the previous room's views are already gone; nothing to re-render
             if (_highlight != null) _highlight.Hide();
+            _inspecting = null;
             _session = new EditingSession(core, _ids);
             _session.Changed += OnSessionChanged;
             _session.Rejected += OnSessionRejected;
@@ -654,6 +694,286 @@ namespace Tryscape.Unity
             }
             Mode = AppMode.Editing;
             return true;
+        }
+
+        // ---- Attempts and comparison (D03.6, S09) ----
+
+        /// <summary>Retains the latest run as Attempt A or B. The snapshot is immutable; later edits cannot change it.</summary>
+        public SavedAttempt KeepAttempt(AttemptSlot slot)
+        {
+            if (!EnsureEditing())
+                return null;
+            var run = LatestRun;
+            if (run == null)
+            {
+                SetStatus("Rehearse first, then keep the result as an attempt.");
+                return null;
+            }
+            var kept = _attempts.Keep(slot, run);
+            SetStatus($"Kept as {kept.Label}: revision {run.Evidence.SceneRevision}, {run.Route?.Label ?? run.Evidence.RouteId}, " +
+                      $"{AttemptComparison.OutcomeWords(run.Evidence.Outcome).ToLowerInvariant()}" +
+                      (IsResultStale ? " (this result is out of date for the current scene)." : "."));
+            return kept;
+        }
+
+        public ComparisonReport Comparison =>
+            _attempts.BothRetained ? AttemptComparison.Compare(_attempts.A, _attempts.B) : null;
+
+        public void Compare()
+        {
+            if (_session == null)
+            {
+                SetStatus("Create or open a rehearsal first.");
+                return;
+            }
+            if (!_attempts.BothRetained)
+            {
+                SetStatus(_attempts.A == null
+                    ? "Rehearse, then press Keep as A. Change the arrangement, rehearse again and press Keep as B."
+                    : "Change the arrangement, rehearse again, then press Keep as B.");
+                return;
+            }
+            CancelDrag();
+            StopReplay();
+            Mode = AppMode.Comparing;
+            SetStatus("Comparing Attempt A and Attempt B. Inspect either one on the tabletop; the live scene is unchanged.");
+        }
+
+        /// <summary>Shows an attempt's own scene snapshot (read-only) with its evaluated highlight.</summary>
+        public void InspectAttempt(AttemptSlot slot)
+        {
+            var attempt = _attempts.Get(slot);
+            if (Mode != AppMode.Comparing || attempt == null)
+                return;
+            if (_playback != null) _playback.Stop();
+            _inspecting = slot;
+            _presenter.Render(attempt.Run.Scene);
+            if (_highlight != null)
+            {
+                if (attempt.Run.Evidence.FirstViolation != null)
+                    _highlight.Show(attempt.Run, _catalog);
+                else
+                    _highlight.Hide();
+            }
+            SetStatus($"Inspecting {attempt.Label} (revision {attempt.Run.Evidence.SceneRevision}, read-only). Replay plays this attempt.");
+        }
+
+        /// <summary>Replays the inspected attempt from its own timeline (the existing playback controller).</summary>
+        public void ReplayInspected()
+        {
+            if (_inspecting == null)
+            {
+                SetStatus("Inspect Attempt A or Attempt B first.");
+                return;
+            }
+            var run = _attempts.Get(_inspecting.Value).Run;
+            if (!run.CanReplay || !_presenter.Views.TryGetValue(run.Route.PayloadEntityId, out var view))
+            {
+                SetStatus("This attempt cannot be replayed.");
+                return;
+            }
+            if (_highlight != null) _highlight.Hide();
+            _playback.Begin(run.CreateTimeline(), view.transform, run.Scene.Room);
+            Changed();
+        }
+
+        public void InspectLive()
+        {
+            if (_inspecting == null)
+                return;
+            _inspecting = null;
+            if (_playback != null) _playback.Stop();
+            if (_highlight != null) _highlight.Hide();
+            if (_session != null)
+                _presenter.Render(_session.Current);
+            Changed();
+        }
+
+        public void LeaveComparison()
+        {
+            InspectLive();
+            if (Mode == AppMode.Comparing)
+            {
+                Mode = AppMode.Editing;
+                SetStatus("Back to the live scene.");
+            }
+        }
+
+        /// <summary>Comparison card: both attempts, then changes, explanation and notes (model wording only).</summary>
+        public string ComparisonText
+        {
+            get
+            {
+                var report = Comparison;
+                if (report == null)
+                    return "";
+                var t = new StringBuilder();
+                foreach (var s in new[] { report.A, report.B })
+                    t.Append(s.Label).Append(": rev ").Append(s.Revision).Append(", ").Append(s.RouteLabel).Append(", ")
+                        .Append(s.OutcomeText).Append(s.RouteLengthMm.HasValue ? $", {s.RouteLengthMm.Value / 1000.0:0.00} m route" : "")
+                        .Append(s.ObstructionLabel != null && s.Outcome == EvaluationOutcome.BlockedInModel ? $" (obstruction: {s.ObstructionLabel})" : "")
+                        .Append('\n');
+                if (!report.Comparable)
+                    t.Append(report.IncompatibleText).Append('\n');
+                else
+                {
+                    foreach (var c in report.Changes)
+                        t.Append("Changed: ").Append(c).Append('\n');
+                    t.Append(report.Explanation).Append('\n');
+                    if (report.LengthDifferenceMm.HasValue && report.LengthDifferenceMm.Value != 0)
+                        t.Append($"Route length differs by {Math.Abs(report.LengthDifferenceMm.Value) / 1000.0:0.00} m (a model calculation, not travel time or effort).\n");
+                    if (report.Preparation != null)
+                        t.Append("Preparation: ").Append(report.Preparation).Append('\n');
+                }
+                foreach (var n in report.Notes)
+                    t.Append(n).Append('\n');
+                t.Append(Explanation.Scope);
+                return t.ToString();
+            }
+        }
+
+        // ---- Local projects (S12) ----
+
+        public string ProjectTitle =>
+            _session == null ? "" : $"Moving Day {_session.Current.Room.WidthMm / 1000.0:0.0} x {_session.Current.Room.DepthMm / 1000.0:0.0} m";
+
+        string Now() => _clock.UtcNow.ToUniversalTime().ToString("yyyy-MM-dd'T'HH:mm:ss'Z'", CultureInfo.InvariantCulture);
+
+        /// <summary>Saves committed state, the creation baseline, the retained attempts and the tabletop zoom.</summary>
+        public StoreResult<ProjectListing> SaveProject()
+        {
+            if (_session == null)
+            {
+                SetStatus("Create or open a rehearsal before saving.");
+                return null;
+            }
+            var now = Now();
+            var snapshot = new ProjectSnapshot(_session.Current.ProjectId, ProjectTitle, _projectCreatedAt ?? now, now,
+                _session.Confirmed, _session.Current, _tabletop != null ? _tabletop.ZoomStep : 2,
+                _attempts.A?.Run, _attempts.B?.Run);
+            var result = _store.Save(snapshot);
+            if (result.Succeeded)
+            {
+                _projectCreatedAt = snapshot.CreatedAt;
+                SetStatus($"Saved \"{snapshot.Title}\" on this device (revision {_session.Current.Revision}, " +
+                          $"{snapshot.Runs.Count()} attempt{(snapshot.Runs.Count() == 1 ? "" : "s")}).");
+            }
+            else
+                SetStatus(StoreText(result.Error, result.Detail) + " Your scene is unchanged.");
+            return result;
+        }
+
+        public void OpenProjects()
+        {
+            CancelDrag();
+            if (_playback != null) _playback.Pause();
+            _recorder?.Cancel();
+            _creation?.Cancel();
+            InspectLive();
+            Mode = AppMode.Projects;
+            _deleteArmed = false;
+            var list = _store.List();
+            _projects = list.Succeeded ? list.Value : Array.Empty<ProjectListing>();
+            _projectIndex = 0;
+            SetStatus(!list.Succeeded ? StoreText(list.Error, list.Detail)
+                : _projects.Count == 0 ? "No saved projects on this device yet."
+                : $"{_projects.Count} saved project{(_projects.Count == 1 ? "" : "s")}. Choose one to open or delete.");
+        }
+
+        public void SelectProject(int delta)
+        {
+            if (Mode != AppMode.Projects || _projects.Count == 0)
+                return;
+            _projectIndex = (_projectIndex + delta + _projects.Count) % _projects.Count;
+            _deleteArmed = false;
+            Changed();
+        }
+
+        public string ProjectsText
+        {
+            get
+            {
+                if (Mode != AppMode.Projects)
+                    return "";
+                if (_projects.Count == 0)
+                    return "No saved projects. Create a rehearsal and press Save.";
+                var p = _projects[_projectIndex];
+                return $"{_projectIndex + 1} of {_projects.Count}\n{p.Title}\nSaved {p.UpdatedAt.Replace('T', ' ').TrimEnd('Z')} UTC\n" +
+                       $"{p.RunCount} saved attempt{(p.RunCount == 1 ? "" : "s")}" +
+                       (_deleteArmed ? "\nPress Delete again to remove this project and its attempts from this device." : "");
+            }
+        }
+
+        /// <summary>
+        /// Opens the selected project. Everything is validated before the current scene is replaced; on any failure the
+        /// current project stays exactly as it was.
+        /// </summary>
+        public bool OpenSelectedProject()
+        {
+            if (Mode != AppMode.Projects || _projects.Count == 0)
+                return false;
+            var listing = _projects[_projectIndex];
+            var loaded = _store.Load(listing.ProjectId);
+            if (!loaded.Succeeded)
+            {
+                SetStatus(StoreText(loaded.Error, loaded.Detail) + (_session != null ? " Your current scene is unchanged." : "") +
+                          " You can still create the example with hands.");
+                return false;
+            }
+            var p = loaded.Value;
+            if (!SceneSession.TryRestore(p.ConfirmedScene, p.CurrentScene, _catalog, out var core, out _))
+            {
+                SetStatus("That project could not be restored (its scenes did not validate). Nothing was changed.");
+                return false;
+            }
+            _creation.SceneReplaced();
+            if (!Activate(core))
+                return false;
+            _attempts.Restore(p.AttemptA, p.AttemptB);
+            _projectCreatedAt = p.CreatedAt;
+            if (_tabletop != null)
+                _tabletop.SetZoomStep(p.TabletopZoomStep);
+            SetStatus($"Opened \"{p.Title}\" at revision {p.CurrentScene.Revision}" +
+                      (loaded.Recovered ? " from a verified backup copy (the newest file was damaged)" : "") +
+                      $". {p.Runs.Count()} saved attempt{(p.Runs.Count() == 1 ? "" : "s")}. Undo history starts fresh.");
+            return true;
+        }
+
+        /// <summary>Two presses: the first arms, the second deletes the project and all its local copies.</summary>
+        public void DeleteSelectedProject()
+        {
+            if (Mode != AppMode.Projects || _projects.Count == 0)
+                return;
+            if (!_deleteArmed)
+            {
+                _deleteArmed = true;
+                SetStatus("Press Delete again to confirm. This removes the project and its saved attempts from this device.");
+                return;
+            }
+            var target = _projects[_projectIndex];
+            var result = _store.Delete(target.ProjectId);
+            _deleteArmed = false;
+            var list = _store.List();
+            _projects = list.Succeeded ? list.Value : Array.Empty<ProjectListing>();
+            _projectIndex = Math.Min(_projectIndex, Math.Max(0, _projects.Count - 1));
+            SetStatus(result.Succeeded ? $"Deleted \"{target.Title}\" from this device." : StoreText(result.Error, result.Detail));
+        }
+
+        static string StoreText(StoreError error, string detail)
+        {
+            switch (error)
+            {
+                case StoreError.NotFound: return "That project is no longer on this device.";
+                case StoreError.Corrupt: return "That project's files are damaged and no valid backup was found, so it was not opened.";
+                case StoreError.UnsupportedVersion: return "That project was saved by a newer version of Tryscape; it is kept unchanged and cannot be opened here.";
+                case StoreError.IncompatibleContent: return "That project uses a scenario or catalog version this app does not have.";
+                case StoreError.QuotaExceeded:
+                    return detail == "too_many_projects"
+                        ? "Storage limit reached (20 projects). Delete a project to save a new one; nothing was deleted automatically."
+                        : "Local storage limit reached. Delete a project to make room; nothing was deleted automatically.";
+                case StoreError.TooLarge: return "This project is too large to save (1 MiB limit per file).";
+                default: return "The device refused to read or write the project files.";
+            }
         }
 
         // ---- Editing (hands) ----

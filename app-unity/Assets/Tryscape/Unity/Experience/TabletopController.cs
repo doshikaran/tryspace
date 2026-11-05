@@ -17,6 +17,15 @@ namespace Tryscape.Unity.Experience
 
         public float CurrentScale => Scales[_index];
 
+        /// <summary>Saved presentation setting (S12): zoom step 0-4. It never affects model geometry.</summary>
+        public int ZoomStep => _index;
+
+        public void SetZoomStep(int step)
+        {
+            _index = Mathf.Clamp(step, 0, Scales.Length - 1);
+            transform.localScale = Vector3.one * Scales[_index];
+        }
+
         void Awake()
         {
             transform.localScale = Vector3.one * Scales[_index];

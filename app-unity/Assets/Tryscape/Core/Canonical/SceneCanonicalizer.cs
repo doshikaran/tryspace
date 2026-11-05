@@ -19,7 +19,13 @@ namespace Tryscape.Core.Canonical
 
         public static string Uuid(Guid id) => id.ToString("D"); // lowercase, hyphenated
 
-        public static CanonicalObject ToCanonical(SceneSpec scene)
+        public static CanonicalObject ToCanonical(SceneSpec scene) => ToCanonical(scene, false);
+
+        /// <summary>
+        /// Canonical scene object. With <paramref name="includeAuditTimestamps"/>, measurement sources keep
+        /// <c>confirmed_at</c>: this is the persisted form (S12). It is never the hashed form, which always excludes it.
+        /// </summary>
+        public static CanonicalObject ToCanonical(SceneSpec scene, bool includeAuditTimestamps)
         {
             if (scene == null)
                 throw new ArgumentNullException(nameof(scene));
@@ -53,7 +59,12 @@ namespace Tryscape.Core.Canonical
 
             var sources = CanonicalJson.Array();
             foreach (var m in scene.MeasurementSources.OrderBy(m => m.FieldPath, StringComparer.Ordinal))
-                sources.Add(CanonicalJson.Object().Set("field_path", m.FieldPath).Set("source", "user_confirmed"));
+            {
+                var source = CanonicalJson.Object().Set("field_path", m.FieldPath).Set("source", "user_confirmed");
+                if (includeAuditTimestamps)
+                    source.Set("confirmed_at", m.ConfirmedAtUtc);
+                sources.Add(source);
+            }
 
             return CanonicalJson.Object()
                 .Set("schema_version", SceneSpec.SchemaVersion)

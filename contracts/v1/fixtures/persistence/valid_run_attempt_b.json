@@ -1,0 +1,141 @@
+{
+  "schema_version": "1.0.0",
+  "serializer_version": "1.0.0",
+  "run_id": "60000000-0000-4000-8000-00000000000b",
+  "project_id": "20000000-0000-4000-8000-000000000001",
+  "label": "Attempt B",
+  "saved_at": "2026-11-06T09:00:00Z",
+  "scene": {
+    "schema_version": "1.0.0",
+    "scene_id": "10000000-0000-4000-8000-000000000001",
+    "project_id": "20000000-0000-4000-8000-000000000001",
+    "scenario_pack_id": "moving_day",
+    "scenario_pack_version": "1.0.0",
+    "catalog_version": "1.0.0",
+    "revision": 1,
+    "room": {
+      "width_mm": 6000,
+      "depth_mm": 5000
+    },
+    "entities": [
+      {
+        "id": "30000000-0000-4000-8000-000000000001",
+        "catalog_id": "sofa_standard",
+        "role": "payload",
+        "pose": {
+          "x_mm": 1000,
+          "z_mm": 2500,
+          "yaw_deg": 0
+        },
+        "editable": false,
+        "label": "Delivery sofa"
+      },
+      {
+        "id": "30000000-0000-4000-8000-000000000002",
+        "catalog_id": "console_standard",
+        "role": "blocker",
+        "pose": {
+          "x_mm": 2500,
+          "z_mm": 800,
+          "yaw_deg": 0
+        },
+        "editable": true,
+        "label": "Console table"
+      }
+    ],
+    "routes": [
+      {
+        "id": "direct",
+        "label": "Direct approach",
+        "payload_entity_id": "30000000-0000-4000-8000-000000000001",
+        "speed_mm_per_s": 250,
+        "waypoints": [
+          {
+            "x_mm": 1000,
+            "z_mm": 2500
+          },
+          {
+            "x_mm": 4000,
+            "z_mm": 2500
+          },
+          {
+            "x_mm": 4000,
+            "z_mm": 3800
+          }
+        ]
+      },
+      {
+        "id": "north_detour",
+        "label": "Northern approach",
+        "payload_entity_id": "30000000-0000-4000-8000-000000000001",
+        "speed_mm_per_s": 250,
+        "waypoints": [
+          {
+            "x_mm": 1000,
+            "z_mm": 2500
+          },
+          {
+            "x_mm": 1000,
+            "z_mm": 4000
+          },
+          {
+            "x_mm": 4000,
+            "z_mm": 4000
+          },
+          {
+            "x_mm": 4000,
+            "z_mm": 3800
+          }
+        ]
+      }
+    ],
+    "active_route_id": "direct",
+    "assumptions": [
+      {
+        "code": "illustrative_layout",
+        "text": "Prepared example; dimensions are not measurements of your home.",
+        "source": "template",
+        "requires_confirmation": false
+      },
+      {
+        "code": "upright_fixed_orientation",
+        "text": "The sofa remains upright at a fixed orientation; lifting and turning are not assessed.",
+        "source": "scenario_model",
+        "requires_confirmation": false
+      }
+    ],
+    "provenance": "illustrative",
+    "measurement_sources": []
+  },
+  "result": {
+    "schema_version": "1.0.0",
+    "scene_id": "10000000-0000-4000-8000-000000000001",
+    "scene_revision": 1,
+    "scene_hash": "fd6a7e6b4cfa8aa11b24959ab87c212dd8ce2766eb57d9fe7b679e8a6ad8afb7",
+    "route_id": "direct",
+    "catalog_version": "1.0.0",
+    "evaluator_version": "1.0.0",
+    "outcome": "clear_in_model",
+    "route_length_mm": 4300,
+    "first_violation": null,
+    "assumptions": [
+      {
+        "code": "illustrative_layout",
+        "text": "Prepared example; dimensions are not measurements of your home.",
+        "source": "template",
+        "requires_confirmation": false
+      },
+      {
+        "code": "upright_fixed_orientation",
+        "text": "The sofa remains upright at a fixed orientation; lifting and turning are not assessed.",
+        "source": "scenario_model",
+        "requires_confirmation": false
+      }
+    ],
+    "validation_errors": [],
+    "run_id": "60000000-0000-4000-8000-00000000000b",
+    "created_at": "2026-11-06T09:00:00Z"
+  },
+  "evidence_hash": "190369769f2c00cf236d8467675869af5bf353093337bdca2ba6bbbfeeabb80d",
+  "content_hash": "0b170b26e595f9fc6bb5cb3fe9765b75ef1b552d1e48085a8d2176637a135ba6"
+}

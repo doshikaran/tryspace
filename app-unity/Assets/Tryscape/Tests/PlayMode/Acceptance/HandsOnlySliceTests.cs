@@ -37,6 +37,8 @@ namespace Tryscape.Tests.PlayMode.Acceptance
             "ObstructionCenter", "ObstructionSouth", "RouteDirect", "RouteNorth", "ConfirmCreate", "BackToWelcome",
             "Rotate", "ToggleRoute", "Undo", "Redo", "Reset", "ZoomOut", "ZoomIn", "Recenter", "Menu",
             "Rehearse", "PlayPause", "Details",
+            "KeepA", "KeepB", "Compare", "Save", "InspectA", "InspectB", "InspectLive", "CompareReplay", "CompareBack",
+            "ProjectPrev", "ProjectNext", "ProjectOpen", "ProjectDelete", "ProjectsBack",
         };
 
         GameObject _root;
@@ -44,8 +46,17 @@ namespace Tryscape.Tests.PlayMode.Acceptance
         PanelController _panel;
         TabletopController _tabletop;
 
+        string _storeRoot;
+
         [UnitySetUp]
         public IEnumerator SetUp()
+        {
+            _storeRoot = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "tryscape-play-" + Guid.NewGuid().ToString("N"));
+            yield return BuildApp();
+        }
+
+        /// <summary>Builds a fresh app over the test's storage folder (also used to simulate a restart).</summary>
+        IEnumerator BuildApp()
         {
             _root = new GameObject("Test Root");
             var tabletop = new GameObject("Tabletop");
@@ -71,6 +82,8 @@ namespace Tryscape.Tests.PlayMode.Acceptance
             {
                 var go = new GameObject(id, typeof(RectTransform), typeof(UnityEngine.UI.Image), typeof(UnityEngine.UI.Button));
                 go.transform.SetParent(panelGo.transform, false);
+                var label = new GameObject("Text", typeof(RectTransform), typeof(UnityEngine.UI.Text));
+                label.transform.SetParent(go.transform, false); // so tests read the label a user would read
                 return go.GetComponent<UnityEngine.UI.Button>();
             }).ToArray();
             _panel.Configure(null, null, null, null, null, null, buttons);
@@ -81,6 +94,7 @@ namespace Tryscape.Tests.PlayMode.Acceptance
             _app = appGo.AddComponent<TryscapeApp>();
             _app.Configure(presenter, ghost, _panel, _tabletop);
             appGo.SetActive(true);
+            _app.UseProjectStore(new Tryscape.Infrastructure.Persistence.ProjectStore(_storeRoot, MovingDayPack.CreateCatalog()));
             yield return null; // Start: panel binds to the app
         }
 
@@ -89,6 +103,136 @@ namespace Tryscape.Tests.PlayMode.Acceptance
         {
             UnityEngine.Object.Destroy(_root);
             yield return null;
+            if (_storeRoot != null && System.IO.Directory.Exists(_storeRoot))
+                System.IO.Directory.Delete(_storeRoot, true);
+        }
+
+        /// <summary>
+        /// D03.6 / AC14 / AC15 through the real panel and the real Interaction SDK grab:
+        /// <list type="number">
+        /// <item>rehearse, keep A, drag the console, rehearse, keep B, then compare and inspect both;</item>
+        /// <item>zoom, then save;</item>
+        /// <item>destroy the whole app and build a new one over the same storage folder;</item>
+        /// <item>reopen, then inspect and compare again.</item>
+        /// </list>
+        /// The "restart" is a new app object graph in the same Editor process, not a process kill on device.
+        /// </summary>
+        [UnityTest]
+        public IEnumerator CompareTwoAttemptsSaveRestartAndReopen()
+        {
+            yield return CreateExample();
+            _panel.Press("Rehearse");
+            Assert.AreEqual(EvaluationOutcome.BlockedInModel, _app.LatestRun.Evidence.Outcome);
+            _panel.Press("KeepA");
+            Assert.AreEqual("A: rev 0", _panel.LabelOf("KeepA"));
+            Assert.IsFalse(_panel.IsInteractable("Compare"), "comparison needs both attempts");
+            var aHash = _app.Attempts.A.Run.Evidence.EvidenceHash();
+
+            yield return DragConsole(RightHand, World(2500, 2500), World(2512, 790));
+            Assert.AreEqual(new ModelPose(2500, 800, 0), ConsolePose, _app.Status);
+            StringAssert.Contains("OUT OF DATE", _app.ResultText, "the live result is stale after the edit");
+            Assert.AreEqual(aHash, _app.Attempts.A.Run.Evidence.EvidenceHash(), "Attempt A is unchanged by the edit");
+            _panel.Press("Rehearse");
+            Assert.AreEqual(EvaluationOutcome.ClearInModel, _app.LatestRun.Evidence.Outcome);
+            _panel.Press("KeepB");
+
+            _panel.Press("Compare");
+            Assert.AreEqual(AppMode.Comparing, _app.Mode);
+            var card = _app.ComparisonText;
+            StringAssert.Contains("Attempt A: rev 0, Direct approach, Blocked in this model, 4.30 m route (obstruction: the console table)", card);
+            StringAssert.Contains("Attempt B: rev 1, Direct approach, Clear in this model, 4.30 m route", card);
+            StringAssert.Contains("Changed: Console table moved from (2.50, 2.50) m to (2.50, 0.80) m.", card);
+            StringAssert.Contains("Preparation: Before delivery, move the console table out of the direct approach, as in Attempt B.", card);
+            StringAssert.Contains("Floor footprint only", card);
+
+            _panel.Press("InspectA");
+            var (ax, az) = ModelSpaceMapping.ToLocal(_app.Session.Current.Room, 2500, 2500);
+            Assert.That(Vector3.Distance(Console.transform.localPosition, new Vector3(ax, 0, az)), Is.LessThan(1e-5f), "A's snapshot is shown");
+            Assert.IsNull(_app.Drag, "snapshots are read-only: no drags while inspecting");
+            Assert.IsTrue(_app.Highlight.IsShown, "A's obstruction is highlighted");
+            _panel.Press("CompareReplay");
+            Assert.IsTrue(_app.Playback.IsPlaying);
+            yield return null;
+            Assert.AreEqual(new ModelPose(2500, 800, 0), ConsolePose, "inspection never changes the live scene");
+            _panel.Press("InspectLive");
+            var (lx, lz) = ModelSpaceMapping.ToLocal(_app.Session.Current.Room, 2500, 800);
+            Assert.That(Vector3.Distance(Console.transform.localPosition, new Vector3(lx, 0, lz)), Is.LessThan(1e-5f));
+            _panel.Press("CompareBack");
+            Assert.AreEqual(AppMode.Editing, _app.Mode);
+
+            _panel.Press("ZoomIn"); // presentation setting: step 2 -> 3
+            Assert.AreEqual(3, _tabletop.ZoomStep);
+            _panel.Press("Save");
+            StringAssert.Contains("Saved", _app.Status);
+            var projectId = _app.Session.Current.ProjectId;
+            var liveHash = Tryscape.Core.Canonical.SceneCanonicalizer.SceneHash(_app.Session.Current);
+            var runA = _app.Attempts.A.Run.Result.RunId;
+            var runB = _app.Attempts.B.Run.Result.RunId;
+            var bHash = _app.Attempts.B.Run.Evidence.EvidenceHash();
+
+            // "Restart": the whole app is destroyed and rebuilt over the same storage folder.
+            UnityEngine.Object.Destroy(_root);
+            yield return null;
+            yield return BuildApp();
+            Assert.IsNull(_app.Session);
+            Assert.AreEqual(2, _tabletop.ZoomStep, "a new app starts at the default zoom");
+            _panel.Press("OpenSaved");
+            Assert.AreEqual(AppMode.Projects, _app.Mode);
+            StringAssert.Contains("Moving Day 6.0 x 5.0 m", _app.ProjectsText);
+            StringAssert.Contains("2 saved attempts", _app.ProjectsText);
+            _panel.Press("ProjectOpen");
+            Assert.AreEqual(AppMode.Editing, _app.Mode, _app.Status);
+            Assert.AreEqual(projectId, _app.Session.Current.ProjectId);
+            Assert.AreEqual(1, _app.Session.Current.Revision);
+            Assert.AreEqual(liveHash, Tryscape.Core.Canonical.SceneCanonicalizer.SceneHash(_app.Session.Current));
+            Assert.AreEqual(new ModelPose(2500, 800, 0), ConsolePose);
+            Assert.AreEqual(3, _tabletop.ZoomStep, "saved presentation setting restored");
+            Assert.AreEqual(runA, _app.Attempts.A.Run.Result.RunId);
+            Assert.AreEqual(runB, _app.Attempts.B.Run.Result.RunId);
+            Assert.AreEqual(aHash, _app.Attempts.A.Run.Evidence.EvidenceHash());
+            Assert.AreEqual(bHash, _app.Attempts.B.Run.Evidence.EvidenceHash());
+            yield return null;
+            _panel.Press("Compare");
+            StringAssert.Contains("Preparation: Before delivery, move the console table", _app.ComparisonText);
+            _panel.Press("InspectA");
+            Assert.That(Vector3.Distance(Console.transform.localPosition, new Vector3(ax, 0, az)), Is.LessThan(1e-5f));
+            _panel.Press("CompareBack");
+            _panel.Press("Reset"); // the saved creation baseline is still the reset target
+            Assert.AreEqual(new ModelPose(2500, 2500, 0), ConsolePose);
+            Assert.AreEqual(2, _app.Session.Current.Revision, "reset is a new revision");
+
+            _panel.Press("Menu");
+            _panel.Press("OpenSaved");
+            _panel.Press("ProjectDelete");
+            Assert.AreEqual("Confirm delete", _panel.LabelOf("ProjectDelete"));
+            Assert.AreEqual(1, _app.SavedProjects.Count, "the first press only arms the delete");
+            _panel.Press("ProjectDelete");
+            Assert.AreEqual(0, _app.SavedProjects.Count);
+            Assert.IsFalse(System.IO.Directory.Exists(System.IO.Path.Combine(_storeRoot, "projects", projectId.ToString("D"))));
+        }
+
+        [UnityTest]
+        public IEnumerator FailedOpenLeavesTheCurrentProjectUntouched()
+        {
+            yield return CreateExample();
+            _panel.Press("Rehearse");
+            _panel.Press("KeepA");
+            _panel.Press("Save");
+            var saved = System.IO.Path.Combine(_storeRoot, "projects", _app.Session.Current.ProjectId.ToString("D"), "project.json");
+            System.IO.File.WriteAllText(saved, "{\"schema_version\":\"1.0.0\"}"); // damaged; there is no backup yet
+            yield return CreateExample(app => _panel.Press("WidthPlus")); // a different, unsaved current project
+            _panel.Press("Rehearse");
+            _panel.Press("KeepA");
+            var current = _app.Session.Current;
+            Assert.IsNotNull(_app.Attempts.A);
+            var attempts = _app.Attempts.A;
+            _panel.Press("Menu");
+            _panel.Press("OpenSaved");
+            _panel.Press("ProjectOpen");
+            StringAssert.Contains("damaged", _app.Status);
+            Assert.AreSame(current, _app.Session.Current, "the current project is preserved");
+            Assert.AreSame(attempts, _app.Attempts.A);
+            Assert.IsTrue(System.IO.File.Exists(saved + ".corrupt"), "damaged bytes preserved for diagnosis");
         }
 
         IEnumerator CreateExample(Action<TryscapeApp> adjust = null)
@@ -313,8 +457,14 @@ namespace Tryscape.Tests.PlayMode.Acceptance
             StringAssert.Contains("sent to the Tryscape creation service", _app.Status);
             Assert.IsNull(_app.Session, "voice entry must not create a scene");
             _panel.Press("Menu");
+            // "Open saved" now lists local projects; this test uses an empty temporary store, never the real data folder.
+            var root = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "tryscape-empty-" + Guid.NewGuid().ToString("N"));
+            _app.UseProjectStore(new Tryscape.Infrastructure.Persistence.ProjectStore(root, MovingDayPack.CreateCatalog()));
             _panel.Press("OpenSaved");
+            Assert.AreEqual(AppMode.Projects, _app.Mode);
+            StringAssert.Contains("No saved projects", _app.Status);
             Assert.IsNull(_app.Session);
+            Assert.IsFalse(System.IO.Directory.Exists(root), "listing an empty store writes nothing");
             yield return null;
         }
 

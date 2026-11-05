@@ -24,8 +24,6 @@ namespace Tryscape.Unity.Experience
             "Scan my floor plan PDF and predict where the movers will go",
         };
 
-        public const string SavedUnavailable = "Saved projects are not available in this build yet.";
-
         public const string HelpText =
             "Grab the console table with a pinch or ray to move it. Release on a clear spot to place it. " +
             "Rehearse checks the selected route in the model and replays it. " +
@@ -44,6 +42,10 @@ namespace Tryscape.Unity.Experience
         [SerializeField] InputField _transcriptInput;
         [SerializeField] GameObject _voiceSection;
         [SerializeField] Text _voiceCard;
+        [SerializeField] GameObject _compareSection;
+        [SerializeField] Text _compareCard;
+        [SerializeField] GameObject _projectsSection;
+        [SerializeField] Text _projectsCard;
         [SerializeField] List<Button> _buttons = new List<Button>();
 
         TryscapeApp _app;
@@ -52,8 +54,13 @@ namespace Tryscape.Unity.Experience
         public void Configure(GameObject welcome, GameObject create, GameObject edit, Text status, Text draftSummary,
             Text sceneSummary, IEnumerable<Button> buttons, Text resultCard = null, GameObject describe = null,
             GameObject review = null, Text reviewCard = null, InputField transcriptInput = null, GameObject voice = null,
-            Text voiceCard = null)
+            Text voiceCard = null, GameObject compare = null, Text compareCard = null, GameObject projects = null,
+            Text projectsCard = null)
         {
+            _compareSection = compare;
+            _compareCard = compareCard;
+            _projectsSection = projects;
+            _projectsCard = projectsCard;
             _voiceSection = voice;
             _voiceCard = voiceCard;
             _describeSection = describe;
@@ -117,7 +124,21 @@ namespace Tryscape.Unity.Experience
                 case "VoiceHands": _app.BeginHandCreation(); break;
                 case "VoiceBack": _app.ShowWelcome(); break;
                 case "EditTranscript": _app.EditTranscript(); break;
-                case "OpenSaved": ShowMessage(SavedUnavailable); break;
+                case "OpenSaved": _app.OpenProjects(); break;
+                case "KeepA": _app.KeepAttempt(Tryscape.Application.Rehearsal.AttemptSlot.A); break;
+                case "KeepB": _app.KeepAttempt(Tryscape.Application.Rehearsal.AttemptSlot.B); break;
+                case "Compare": _app.Compare(); break;
+                case "Save": _app.SaveProject(); break;
+                case "InspectA": _app.InspectAttempt(Tryscape.Application.Rehearsal.AttemptSlot.A); break;
+                case "InspectB": _app.InspectAttempt(Tryscape.Application.Rehearsal.AttemptSlot.B); break;
+                case "InspectLive": _app.InspectLive(); break;
+                case "CompareReplay": _app.ReplayInspected(); break;
+                case "CompareBack": _app.LeaveComparison(); break;
+                case "ProjectPrev": _app.SelectProject(-1); break;
+                case "ProjectNext": _app.SelectProject(+1); break;
+                case "ProjectOpen": _app.OpenSelectedProject(); break;
+                case "ProjectDelete": _app.DeleteSelectedProject(); break;
+                case "ProjectsBack": _app.ShowWelcome(); break;
                 case "Help": ShowMessage(HelpText); break;
                 case "WidthMinus": _app.AdjustRoomWidth(-500); break;
                 case "WidthPlus": _app.AdjustRoomWidth(500); break;
@@ -194,6 +215,28 @@ namespace Tryscape.Unity.Experience
             SetActive(_describeSection, mode == AppMode.DescribingTyped);
             SetActive(_reviewSection, mode == AppMode.ReviewingProposal);
             SetActive(_voiceSection, mode == AppMode.RecordingVoice);
+            SetActive(_compareSection, mode == AppMode.Comparing);
+            SetActive(_projectsSection, mode == AppMode.Projects);
+            if (_compareCard != null)
+                _compareCard.text = mode == AppMode.Comparing ? _app.ComparisonText : "";
+            if (_projectsCard != null)
+                _projectsCard.text = _app.ProjectsText;
+            var attempts = _app.Attempts;
+            SetLabel("KeepA", attempts.A == null ? "Keep as A" : "A: rev " + attempts.A.Run.Evidence.SceneRevision);
+            SetLabel("KeepB", attempts.B == null ? "Keep as B" : "B: rev " + attempts.B.Run.Evidence.SceneRevision);
+            SetInteractable("KeepA", _app.LatestRun != null);
+            SetInteractable("KeepB", _app.LatestRun != null);
+            SetInteractable("Compare", attempts.BothRetained);
+            SetInteractable("InspectA", attempts.A != null && _app.Inspecting != Tryscape.Application.Rehearsal.AttemptSlot.A);
+            SetInteractable("InspectB", attempts.B != null && _app.Inspecting != Tryscape.Application.Rehearsal.AttemptSlot.B);
+            SetInteractable("InspectLive", _app.Inspecting != null);
+            SetInteractable("CompareReplay", _app.Inspecting != null);
+            var hasProjects = _app.SavedProjects.Count > 0;
+            SetInteractable("ProjectOpen", hasProjects);
+            SetInteractable("ProjectDelete", hasProjects);
+            SetInteractable("ProjectPrev", _app.SavedProjects.Count > 1);
+            SetInteractable("ProjectNext", _app.SavedProjects.Count > 1);
+            SetLabel("ProjectDelete", _app.DeleteArmed ? "Confirm delete" : "Delete");
             SetActive(_editSection, mode == AppMode.Editing);
             if (_status != null)
                 _status.text = _app.Status;

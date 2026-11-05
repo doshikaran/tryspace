@@ -1,0 +1,12 @@
+{
+  "schema_version": "1.0.0",
+  "projects": [
+    {
+      "project_id": "20000000-0000-4000-8000-000000000001",
+      "title": "Moving Day 6.0 x 5.0 m",
+      "updated_at": "2026-11-06T09:00:00Z",
+      "run_count": 2
+    }
+  ],
+  "content_hash": "50bd25b609c9c7fa3ae64aad0d1462dac4fa608bc5b2fb7202c4c35f4bb47a8e"
+}
