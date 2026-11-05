@@ -47,6 +47,21 @@ REQUIRED_GATES: dict[int, set[str]] = {
         "P1-drag-loss-device",
         "P1-backend-deployment-record",
     },
+    2: {
+        "P2-fixture-expectations",
+        "P2-thin-obstacle-boundary-tests",
+        "P2-frame-rate-independence",
+        "P2-evidence-excludes-envelope",
+        "P2-cross-runtime-canonical-hash",
+        "P2-geometry-mutation-check",
+        "P2-edit-replay-explain-automated",
+        "P2-manual-simulator-walkthrough",
+        "P2-android-build-healthy",
+        "P2-xrsim-regression",
+        "P2-config-verify",
+        "P2-backend-intent-extraction",
+        "P2-devagent-token-rotated",
+    },
 }
 
 

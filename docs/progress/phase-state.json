@@ -1,9 +1,9 @@
 {
   "schema_version": "1.0.0",
-  "current_phase": 1,
+  "current_phase": 2,
   "status": "blocked",
-  "input_commit": "70b445f",
-  "integration_commit": "135f1fa",
+  "input_commit": "1a53ddd",
+  "integration_commit": "05ac0f6",
   "worker_runs": {
     "A": {
       "status": "not_run",
@@ -35,7 +35,7 @@
       "command_or_procedure": "Inspect installed tools; record exact versions",
       "environment": "docs/environment/m0-environment.md",
       "evidence_path": "docs/environment/m0-environment.md",
-      "evidence_sha256": "3fabc7b37f556364b1c27a1fa5941be2b53922c5555b7664b78440b3eb88381c",
+      "evidence_sha256": "70a115039c681d6d4ee6005b6ca2e9d627d9a08ed9fdd95c0102370fd77ce316",
       "notes": "Exact editor, packages (lockfile), simulator, Android SDK/NDK/JDK/CMake recorded. Unity 6.6 is a Supported (non-LTS) release: decision D11."
     },
     {
@@ -211,15 +211,170 @@
       "command_or_procedure": "Record exact backend/model deployment configuration or the concrete blocker",
       "environment": "n/a",
       "evidence_path": "docs/progress.md",
-      "evidence_sha256": "26b9ef045238b1516633284219dc70a4926c5258a45fc95df1e21396e1efc22f",
+      "evidence_sha256": "b2ce8766342948adfcaa1fd287971b8dc1ab0416ac7f831e14e188a36a081877",
       "notes": "Recorded as blocked (P0-model-access-deployment). Phase 1 workstream C (recording upload, ASR jobs) not started for that reason."
+    },
+    {
+      "id": "P2-fixture-expectations",
+      "phase": 2,
+      "required": true,
+      "status": "pass",
+      "command_or_procedure": "scripts/unity_batch.sh editmode-p2 \"Saving results to\" --artifact artifacts/phase-2/editmode.xml -- -batchmode -projectPath app-unity -runTests -testPlatform EditMode -testResults artifacts/phase-2/editmode.xml; scripts/check_test_results.py --min-tests 122 --no-skips",
+      "environment": "MacBook Air Mac17,3, Apple M5 arm64, macOS 26.6 (25G72); Unity 6000.6.8f1; Meta XR Core/Interaction 207.0.1; OpenXR 1.17.1; Meta XR Simulator 207.1.0; commit 05ac0f6",
+      "evidence_path": "artifacts/phase-2/editmode.xml",
+      "evidence_sha256": "8f90f3727d11fe60a13d6f9661900091d745329971987eea2b7ec227d9102590",
+      "notes": "RouteEvaluatorTests.ReproducesEveryIndependentExpectation: all 11 cases of contracts/v1/fixtures/evaluation/expectations.json (F01, F01_north, F02, F03, F04, F04_direct, V7x6_direct, B01-B04) match outcome, length, rule, entity, segment, exact fraction and contact centre. No fixture or expectation was changed. 122/122 passed, 0 skipped (clean_success, unity exit 0)."
+    },
+    {
+      "id": "P2-thin-obstacle-boundary-tests",
+      "phase": 2,
+      "required": true,
+      "status": "pass",
+      "command_or_procedure": "scripts/unity_batch.sh editmode-p2 \"Saving results to\" --artifact artifacts/phase-2/editmode.xml -- -batchmode -projectPath app-unity -runTests -testPlatform EditMode -testResults artifacts/phase-2/editmode.xml; scripts/check_test_results.py --min-tests 122 --no-skips",
+      "environment": "MacBook Air Mac17,3, Apple M5 arm64, macOS 26.6 (25G72); Unity 6000.6.8f1; Meta XR Core/Interaction 207.0.1; OpenXR 1.17.1; Meta XR Simulator 207.1.0; commit 05ac0f6",
+      "evidence_path": "artifacts/phase-2/editmode.xml",
+      "evidence_sha256": "8f90f3727d11fe60a13d6f9661900091d745329971987eea2b7ec227d9102590",
+      "notes": "Hand-derived cases: corner tangency blocked / +1 mm clear, half-extent swaps at yaw 90, invalid_start within margin, north wall exact margin accepted / +1 mm room_boundary 2075/2076, thin panel missed by a 100 mm frame-sampled check but blocked at 151/300, tie-break by UUID regardless of list order, earliest segment wins, interval-derivation sweep over 1,800+ console placements."
+    },
+    {
+      "id": "P2-frame-rate-independence",
+      "phase": 2,
+      "required": true,
+      "status": "pass",
+      "command_or_procedure": "scripts/unity_batch.sh playmode-p2 ... -testPlatform PlayMode -testCategory Experience; scripts/check_test_results.py --min-tests 16 --no-skips",
+      "environment": "MacBook Air Mac17,3, Apple M5 arm64, macOS 26.6 (25G72); Unity 6000.6.8f1; Meta XR Core/Interaction 207.0.1; OpenXR 1.17.1; Meta XR Simulator 207.1.0; commit 05ac0f6",
+      "evidence_path": "artifacts/phase-2/playmode.xml",
+      "evidence_sha256": "4f67c84ec6c420cb4b8adc37cabf433e1ba88ddfd15e274a25bb89d3373c388d",
+      "notes": "Evaluator has no frame input. PlaybackTimeline: exact 20 Hz tick positions; display at 7/30/72/90 fps ends at the same exact stop. PlayMode: real-frame playback with pause/resume stops at (1275,2500) as computed. Device frame rate not measured (no Quest)."
+    },
+    {
+      "id": "P2-evidence-excludes-envelope",
+      "phase": 2,
+      "required": true,
+      "status": "pass",
+      "command_or_procedure": "scripts/unity_batch.sh editmode-p2 \"Saving results to\" --artifact artifacts/phase-2/editmode.xml -- -batchmode -projectPath app-unity -runTests -testPlatform EditMode -testResults artifacts/phase-2/editmode.xml; scripts/check_test_results.py --min-tests 122 --no-skips",
+      "environment": "MacBook Air Mac17,3, Apple M5 arm64, macOS 26.6 (25G72); Unity 6000.6.8f1; Meta XR Core/Interaction 207.0.1; OpenXR 1.17.1; Meta XR Simulator 207.1.0; commit 05ac0f6",
+      "evidence_path": "artifacts/phase-2/editmode.xml",
+      "evidence_sha256": "8f90f3727d11fe60a13d6f9661900091d745329971987eea2b7ec227d9102590",
+      "notes": "RehearsalSessionTests: two runs with different run IDs and timestamps give byte-identical EvaluationEvidence and identical evidence hashes; run_id/created_at appear only in the wire envelope."
+    },
+    {
+      "id": "P2-cross-runtime-canonical-hash",
+      "phase": 2,
+      "required": true,
+      "status": "pass",
+      "command_or_procedure": "uv run --locked scripts/check_contracts.py (148 checks) + EditMode CanonicalHashTests",
+      "environment": "MacBook Air Mac17,3, Apple M5 arm64, macOS 26.6 (25G72); Unity 6000.6.8f1; Meta XR Core/Interaction 207.0.1; OpenXR 1.17.1; Meta XR Simulator 207.1.0; commit 05ac0f6",
+      "evidence_path": "artifacts/phase-2/check_contracts.txt",
+      "evidence_sha256": "c7a300b140d5005b830b4dd8f294b958a6f50a75771116163c3af6613e13902c",
+      "notes": "Two independent S09.1 serializers (Python reference, C# Core) agree on F01 canonical bytes, 11 scene hashes and 11 evidence hashes pinned in contracts/v1/fixtures/canonical/hashes.json. Agreement, not proof of correctness. IL2CPP/device hashing not yet verified on a headset."
+    },
+    {
+      "id": "P2-geometry-mutation-check",
+      "phase": 2,
+      "required": true,
+      "status": "pass",
+      "command_or_procedure": "Deliberate bug: RouteEvaluator.Slab closed interval -> open (tangency missed); EditMode run; bug reverted (line restored byte-for-byte from scratch copy) before commit 05ac0f6",
+      "environment": "MacBook Air Mac17,3, Apple M5 arm64, macOS 26.6 (25G72); Unity 6000.6.8f1; Meta XR Core/Interaction 207.0.1; OpenXR 1.17.1; Meta XR Simulator 207.1.0; commit 05ac0f6",
+      "evidence_path": "artifacts/phase-2/editmode-mutation.xml",
+      "evidence_sha256": "53deed3e681039f42e42dfbb4e3b5603d1c836860134087a05263d396099223f",
+      "notes": "Mutated suite: 118 passed, 4 failed as intended (ReproducesEveryIndependentExpectation:B01, CornerTangencyIsBlocked, HalfMillimetreFootprintBoundsStayExact, EveryEvidenceHashMatchesThePinnedCrossRuntimeValue:B01). Post-revert run: 122/122."
+    },
+    {
+      "id": "P2-edit-replay-explain-automated",
+      "phase": 2,
+      "required": true,
+      "status": "pass",
+      "command_or_procedure": "scripts/unity_batch.sh playmode-p2 ... -testPlatform PlayMode -testCategory Experience; scripts/check_test_results.py --min-tests 16 --no-skips",
+      "environment": "MacBook Air Mac17,3, Apple M5 arm64, macOS 26.6 (25G72); Unity 6000.6.8f1; Meta XR Core/Interaction 207.0.1; OpenXR 1.17.1; Meta XR Simulator 207.1.0; commit 05ac0f6",
+      "evidence_path": "artifacts/phase-2/playmode.xml",
+      "evidence_sha256": "4f67c84ec6c420cb4b8adc37cabf433e1ba88ddfd15e274a25bb89d3373c388d",
+      "notes": "16/16 PlayMode Experience: Rehearse -> blocked with console named, playback stops at contact, highlight on console; real Grabbable drag to (2500,800) -> result marked OUT OF DATE, stale replay refused; Rehearse again -> clear, reaches (4000,3800); Undo -> original violation; console north + Northern route -> blocked segment 1; zoom/recentre -> identical evidence bytes. Synthetic pointer events: wiring, not tracking quality."
+    },
+    {
+      "id": "P2-manual-simulator-walkthrough",
+      "phase": 2,
+      "required": true,
+      "status": "not_run",
+      "command_or_procedure": "Manual: docs/progress.md 'Manual simulator walkthrough' steps 1-9 (now including Rehearse/Replay/Details)",
+      "environment": "MacBook Air Mac17,3, Apple M5 arm64, macOS 26.6 (25G72); Unity 6000.6.8f1; Meta XR Core/Interaction 207.0.1; OpenXR 1.17.1; Meta XR Simulator 207.1.0; commit 05ac0f6",
+      "evidence_path": null,
+      "evidence_sha256": null,
+      "notes": "Needs a person driving simulated hands; not performed. Also covers result-card readability and text truncation, which no automated test checks."
+    },
+    {
+      "id": "P2-android-build-healthy",
+      "phase": 2,
+      "required": true,
+      "status": "pass",
+      "command_or_procedure": "scripts/unity_batch.sh android-p2 \"Build result=Succeeded\" --artifact <apk> --artifact <apk>.manifest.json -- ... BuildCli.BuildAndroid",
+      "environment": "MacBook Air Mac17,3, Apple M5 arm64, macOS 26.6 (25G72); Unity 6000.6.8f1; Meta XR Core/Interaction 207.0.1; OpenXR 1.17.1; Meta XR Simulator 207.1.0; commit 05ac0f6",
+      "evidence_path": "artifacts/phase-2/apk-manifest.json",
+      "evidence_sha256": "b1afde88e434e698721bb14c430114d1b05eef1afdc72c6d6c519517d799ab32",
+      "notes": "clean_success (unity exit 0). Commit 05ac0f6, working_tree_dirty=false, sha256 a3a7d503..., 106,713,636 bytes, arm64-v8a only, IL2CPP, API 32/34. DevAgent access token: 0 hits in the unpacked APK. Unity's development-build boot.config contains player-connection-ip = this Mac's private LAN address (standard dev-build profiler connection, not a credential). Not installed on a headset."
+    },
+    {
+      "id": "P2-xrsim-regression",
+      "phase": 2,
+      "required": true,
+      "status": "pass",
+      "command_or_procedure": "scripts/run_xrsim_smoke.sh (now with --artifact freshness)",
+      "environment": "MacBook Air Mac17,3, Apple M5 arm64, macOS 26.6 (25G72); Unity 6000.6.8f1; Meta XR Core/Interaction 207.0.1; OpenXR 1.17.1; Meta XR Simulator 207.1.0; commit 05ac0f6",
+      "evidence_path": "artifacts/phase-2/xrsim-BootstrapRigTracksSimulatedHands.xml",
+      "evidence_sha256": "4316d378ab3b65caa10645b4186cc049b91da038214e1e5d82326644baca9c26",
+      "notes": "Both simulator smoke tests clean_success (unity exit 0), 1/1 each, zero error/assert/exception logs, with the regenerated Bootstrap scene."
+    },
+    {
+      "id": "P2-config-verify",
+      "phase": 2,
+      "required": true,
+      "status": "pass",
+      "command_or_procedure": "scripts/unity_batch.sh verify-config-p2 \"Verify complete: 0 problem\" --artifact artifacts/unity/verify-config.json -- ... VerifyBatch",
+      "environment": "MacBook Air Mac17,3, Apple M5 arm64, macOS 26.6 (25G72); Unity 6000.6.8f1; Meta XR Core/Interaction 207.0.1; OpenXR 1.17.1; Meta XR Simulator 207.1.0; commit 05ac0f6",
+      "evidence_path": "artifacts/phase-2/verify-config.json",
+      "evidence_sha256": "9770fd20829663d444b4d02d160e222ed1ba25cf158725a763826d1f6f1ac2cd",
+      "notes": "0 problems, clean_success (unity exit 0). The first verify run this phase ended success_with_shutdown_abort (unity exit 134 after the marker); it was re-run once VerifyBatch wrote a report file so the step has a fresh artifact."
+    },
+    {
+      "id": "P2-backend-intent-extraction",
+      "phase": 2,
+      "required": true,
+      "status": "blocked",
+      "command_or_procedure": "Workstream C: model-assisted intent extraction + strict Pydantic/catalog validation",
+      "environment": "MacBook Air Mac17,3, Apple M5 arm64, macOS 26.6 (25G72); Unity 6000.6.8f1; Meta XR Core/Interaction 207.0.1; OpenXR 1.17.1; Meta XR Simulator 207.1.0; commit 05ac0f6",
+      "evidence_path": null,
+      "evidence_sha256": null,
+      "notes": "Blocked on owner decision B-provider-budget (provider/model/hosting/spending). Not started; no mock substitutes for it."
+    },
+    {
+      "id": "P2-devagent-token-rotated",
+      "phase": 2,
+      "required": true,
+      "status": "blocked",
+      "command_or_procedure": "Manual: Unity Editor -> Meta XR AI Tools / Agent Bridge settings -> Remote Agent Server -> Access Token -> Regenerate -> confirm",
+      "environment": "MacBook Air Mac17,3, Apple M5 arm64, macOS 26.6 (25G72); Unity 6000.6.8f1; Meta XR Core/Interaction 207.0.1; OpenXR 1.17.1; Meta XR Simulator 207.1.0; commit 05ac0f6",
+      "evidence_path": null,
+      "evidence_sha256": null,
+      "notes": "The previously exposed value was a locally generated Remote Agent Server token (Guid) for this Editor, not a Meta account credential. It is absent from all git objects (including unreachable) and from the current APK, but it has NOT been regenerated, so it is still valid for this Editor's server if that server is started (listens on all interfaces). History removal is not revocation."
+    },
+    {
+      "id": "P2-basic-comparison",
+      "phase": 2,
+      "required": false,
+      "status": "not_run",
+      "command_or_procedure": "Attempt A/B comparison UI",
+      "environment": "MacBook Air Mac17,3, Apple M5 arm64, macOS 26.6 (25G72); Unity 6000.6.8f1; Meta XR Core/Interaction 207.0.1; OpenXR 1.17.1; Meta XR Simulator 207.1.0; commit 05ac0f6",
+      "evidence_path": null,
+      "evidence_sha256": null,
+      "notes": "phases.md: may be completed in Phase 2; deferred to Phase 4 with persistence. Immutable run snapshots with scene/revision/evaluator attribution exist in memory (RehearsalSession.History)."
     }
   ],
   "blockers": [
     {
       "id": "B-provider-budget",
       "gates": [
-        "P0-model-access-deployment"
+        "P0-model-access-deployment",
+        "P2-backend-intent-extraction"
       ],
       "human_action": "Choose ASR/intent provider(s), hosting and a spending cap (deferred by owner)."
     },
@@ -233,7 +388,8 @@
     {
       "id": "B-manual-simulator",
       "gates": [
-        "P1-manual-simulator-walkthrough"
+        "P1-manual-simulator-walkthrough",
+        "P2-manual-simulator-walkthrough"
       ],
       "human_action": "Run the documented simulator walkthrough and record the outcome."
     },
@@ -250,8 +406,15 @@
         "P0-worker-isolation"
       ],
       "human_action": "Decide whether to run the four-agent model; if yes, verify worktree isolation first."
+    },
+    {
+      "id": "B-devagent-token",
+      "gates": [
+        "P2-devagent-token-rotated"
+      ],
+      "human_action": "In the Unity Editor open Meta XR AI Tools (Agent Bridge) settings, Remote Agent Server section, press Regenerate next to Access Token and confirm. Then rebuild; the build stripper keeps the new value out of APKs."
     }
   ],
   "completed_phases": [],
-  "next_action": "Phase 2 core: segment-vs-expanded-rectangle evaluator in Tryscape.Core reproducing contracts/v1/fixtures/evaluation/expectations.json."
+  "next_action": "Human: manual simulator walkthrough (P1+P2), regenerate the DevAgent token, Quest device checks, provider decision. Agent: Phase 4 attempt comparison + local persistence, or Phase 2 polish (movers, route direction markers) if requested."
 }
