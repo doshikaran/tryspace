@@ -33,9 +33,19 @@ REQUIRED_GATES: dict[int, set[str]] = {
         "P0-android-apk",
         "P0-contract-checks",
         "P0-clean-checkout-repeat",
+        "P0-second-contributor-repeat",
         "P0-worker-isolation",
         "P0-backend-baseline",
         "P0-model-access-deployment",
+    },
+    1: {
+        "P1-core-command-tests",
+        "P1-input-to-command-playmode",
+        "P1-manual-simulator-walkthrough",
+        "P1-android-build-healthy",
+        "P1-drag-loss-automated",
+        "P1-drag-loss-device",
+        "P1-backend-deployment-record",
     },
 }
 

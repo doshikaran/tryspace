@@ -1,9 +1,9 @@
 {
   "schema_version": "1.0.0",
-  "current_phase": 0,
+  "current_phase": 1,
   "status": "blocked",
-  "input_commit": "9f35e64",
-  "integration_commit": "4976e6a",
+  "input_commit": "70b445f",
+  "integration_commit": "135f1fa",
   "worker_runs": {
     "A": {
       "status": "not_run",
@@ -31,67 +31,78 @@
       "id": "P0-toolchain-recorded",
       "phase": 0,
       "required": true,
-      "status": "blocked",
-      "command_or_procedure": "Inspect host tools; record Unity/SDK/simulator/Android/JDK versions",
-      "environment": "MacBook Air Mac17,3, Apple M5 (arm64), 24 GB, macOS 26.6 (25G72)",
+      "status": "pass",
+      "command_or_procedure": "Inspect installed tools; record exact versions",
+      "environment": "docs/environment/m0-environment.md",
       "evidence_path": "docs/environment/m0-environment.md",
-      "evidence_sha256": null,
-      "notes": "Host, Git, Python, uv and PostgreSQL recorded. Unity Hub/Editor, Android modules, JDK, Meta XR Simulator are not installed, so the XR toolchain cannot be recorded."
+      "evidence_sha256": "3fabc7b37f556364b1c27a1fa5941be2b53922c5555b7664b78440b3eb88381c",
+      "notes": "Exact editor, packages (lockfile), simulator, Android SDK/NDK/JDK/CMake recorded. Unity 6.6 is a Supported (non-LTS) release: decision D11."
     },
     {
       "id": "P0-unity-imports-compiles",
       "phase": 0,
       "required": true,
-      "status": "blocked",
-      "command_or_procedure": "Create app-unity/ with Unity 6000.3 LTS + URP, OpenXR, Meta XR SDK 207.0; open and compile",
-      "environment": "MacBook Air Mac17,3, Apple M5 (arm64), 24 GB, macOS 26.6 (25G72)",
-      "evidence_path": null,
-      "evidence_sha256": null,
-      "notes": "No Unity Editor installed; requires Unity account sign-in/licence (human action). No project files fabricated."
+      "status": "pass",
+      "command_or_procedure": "Unity -batchmode -quit -executeMethod Tryscape.Editor.ProjectConfigurator.VerifyBatch (exit 0, 0 problems); EditMode compile",
+      "environment": "MacBook Air Mac17,3, Apple M5 arm64, 24 GB, macOS 26.6 (25G72); Unity 6000.6.8f1; Meta XR Core/Interaction 207.0.1; OpenXR 1.17.1; Meta XR Simulator 207.1.0",
+      "evidence_path": "artifacts/phase-1/verify-config.log",
+      "evidence_sha256": "872b1fcc9c7786fe6cb789b25ec8e2dbe76638f33e0647a183223da413460d18",
+      "notes": "Project created headlessly from the bundled URP template; no hand-written project YAML."
     },
     {
       "id": "P0-simulator-hand-sample",
       "phase": 0,
       "required": true,
-      "status": "blocked",
-      "command_or_procedure": "Run Interaction SDK hand sample in standalone Meta XR Simulator (macOS Apple Silicon build)",
-      "environment": "MacBook Air Mac17,3, Apple M5 (arm64), 24 GB, macOS 26.6 (25G72)",
-      "evidence_path": null,
-      "evidence_sha256": null,
-      "notes": "Depends on Unity project and simulator installation."
+      "status": "pass",
+      "command_or_procedure": "scripts/run_xrsim_smoke.sh (XRSimulator PlayMode category, one process per scene, fails on any error/assert/exception log)",
+      "environment": "MacBook Air Mac17,3, Apple M5 arm64, 24 GB, macOS 26.6 (25G72); Unity 6000.6.8f1; Meta XR Core/Interaction 207.0.1; OpenXR 1.17.1; Meta XR Simulator 207.1.0",
+      "evidence_path": "artifacts/phase-1/xrsim-InteractionSdkHandGrabSampleTracksSimulatedHands.xml",
+      "evidence_sha256": "ec9b7cb3b1f2f18fc5d578d447abf9d229a533e2b6657a08eb1c839b7fddb900",
+      "notes": "Meta HandGrabExamples and Tryscape Bootstrap rig run on the simulator runtime with tracked simulated hands and enabled interactors. Not proven: a person completing a grab in the simulator UI (see P1-manual-simulator-walkthrough)."
     },
     {
       "id": "P0-android-apk",
       "phase": 0,
       "required": true,
-      "status": "blocked",
-      "command_or_procedure": "Tryscape.Editor.BuildCli.BuildAndroid -> ARM64 IL2CPP development APK + manifest",
-      "environment": "MacBook Air Mac17,3, Apple M5 (arm64), 24 GB, macOS 26.6 (25G72)",
-      "evidence_path": null,
-      "evidence_sha256": null,
-      "notes": "Depends on Unity Android Build Support (OpenJDK, SDK/NDK) and the Unity project."
+      "status": "pass",
+      "command_or_procedure": "Tryscape.Editor.BuildCli.BuildAndroid (exit 0) + aapt2/unzip inspection",
+      "environment": "MacBook Air Mac17,3, Apple M5 arm64, 24 GB, macOS 26.6 (25G72); Unity 6000.6.8f1; Meta XR Core/Interaction 207.0.1; OpenXR 1.17.1; Meta XR Simulator 207.1.0; Android NDK r27c 27.2.12479018, CMake 3.22.1, OpenJDK 17.0.18",
+      "evidence_path": "artifacts/phase-1/apk-manifest.json",
+      "evidence_sha256": "01f161aae074af0fed1b990a4547585902a91bdc26796574aca0ed19d3baa69b",
+      "notes": "Development APK, IL2CPP, arm64-v8a only, min API 32/target 34. First built at 0ab2de6; current at 135f1fa. Not installed on a headset (no device)."
     },
     {
       "id": "P0-contract-checks",
       "phase": 0,
       "required": true,
       "status": "pass",
-      "command_or_procedure": "uv run --locked scripts/check_contracts.py (exit 0, 141 passed)",
-      "environment": "MacBook Air Mac17,3, Apple M5 (arm64), 24 GB, macOS 26.6 (25G72); Python 3.12/uv 0.7.22",
-      "evidence_path": "artifacts/phase-0/check_contracts.log",
+      "command_or_procedure": "uv run --locked scripts/check_contracts.py",
+      "environment": "Python 3.12/uv 0.7.22",
+      "evidence_path": "artifacts/phase-1/check_contracts.log",
       "evidence_sha256": "e9e3d7d0a578b17b0b3e379150159c452ed751f8018e86a2df0e7e9e15479d23",
-      "notes": "Schema validity, strict JSON, semantic fixture codes and test-only reference evaluator vs D06 expectations. Five deliberate expectation mutations were each detected. C# consumption pending M1."
+      "notes": "141 checks; C# parity tests also consume the same fixtures."
     },
     {
       "id": "P0-clean-checkout-repeat",
       "phase": 0,
       "required": true,
-      "status": "blocked",
-      "command_or_procedure": "Second contributor clones and repeats setup/build",
-      "environment": "MacBook Air Mac17,3, Apple M5 (arm64), 24 GB, macOS 26.6 (25G72)",
+      "status": "pass",
+      "command_or_procedure": "Fresh git clone (no Library/) -> package resolve/import -> BuildAndroid; backend checks from fresh clone",
+      "environment": "MacBook Air Mac17,3, Apple M5 arm64, 24 GB, macOS 26.6 (25G72)",
       "evidence_path": null,
       "evidence_sha256": null,
-      "notes": "Fresh clone of 4976e6a on the same machine reproduced contracts + backend checks (exit 0). Unity build half and second-person repeat not possible yet."
+      "notes": "Clone of c90a36c built in 10m57s, exit 0, tree clean afterwards; backend/contracts clone of 4976e6a passed. Same machine and user."
+    },
+    {
+      "id": "P0-second-contributor-repeat",
+      "phase": 0,
+      "required": true,
+      "status": "blocked",
+      "command_or_procedure": "A second team member clones and repeats setup/build on their machine (technical-spec S03.1)",
+      "environment": "n/a",
+      "evidence_path": null,
+      "evidence_sha256": null,
+      "notes": "Needs a human contributor."
     },
     {
       "id": "P0-worker-isolation",
@@ -102,18 +113,18 @@
       "environment": "Claude Code session",
       "evidence_path": null,
       "evidence_sha256": null,
-      "notes": "This session executed Phase 0 sequentially as one agent. Agent definitions not yet created; isolation unverified."
+      "notes": "All work so far executed sequentially by one agent; no parallel workers were launched (not requested in this session)."
     },
     {
       "id": "P0-backend-baseline",
       "phase": 0,
       "required": true,
       "status": "pass",
-      "command_or_procedure": "services/api: uv sync --frozen; ruff check; ruff format --check; mypy src; pytest -q (all exit 0, 78 passed); live uvicorn smoke",
-      "environment": "MacBook Air Mac17,3, Apple M5 (arm64), 24 GB, macOS 26.6 (25G72); PostgreSQL 18.0 (Homebrew), Python 3.12.8",
-      "evidence_path": "artifacts/phase-0/api-checks.log",
-      "evidence_sha256": "c5881b560615241cb907e599bc14df1366498a5f7e284de59473fa8a3a7a91df",
-      "notes": "Baseline only: health, anonymous sessions, error envelope, body limits, R0 migration. Job routes, worker, idempotency, consent and rate limits are not implemented."
+      "command_or_procedure": "services/api: uv sync --frozen; ruff check; ruff format --check; mypy src; pytest -q",
+      "environment": "MacBook Air Mac17,3, Apple M5 arm64, 24 GB, macOS 26.6 (25G72); PostgreSQL 18.0; Python 3.12.8",
+      "evidence_path": "artifacts/phase-1/api-checks.log",
+      "evidence_sha256": "76bf3c7a06cad275d0319ebfd9c1c6ba23e55a37f7d29ca442054a73c6b9e8e4",
+      "notes": "78 tests against real PostgreSQL. Baseline only."
     },
     {
       "id": "P0-model-access-deployment",
@@ -124,35 +135,123 @@
       "environment": "n/a",
       "evidence_path": null,
       "evidence_sha256": null,
-      "notes": "Approved spending is zero and no provider/host is selected. Needs owner decision on provider, budget cap and hosting account."
+      "notes": "Owner decision deferred (5 Nov 2026: 'we will decide this later'). Blocks AC02/AC23/AC29 and Phase 1 workstream C."
+    },
+    {
+      "id": "P1-core-command-tests",
+      "phase": 1,
+      "required": true,
+      "status": "pass",
+      "command_or_procedure": "Unity EditMode (Tryscape.Tests.EditMode.Core): 82 tests",
+      "environment": "MacBook Air Mac17,3, Apple M5 arm64, 24 GB, macOS 26.6 (25G72); Unity 6000.6.8f1; Meta XR Core/Interaction 207.0.1; OpenXR 1.17.1; Meta XR Simulator 207.1.0",
+      "evidence_path": "artifacts/phase-1/editmode.xml",
+      "evidence_sha256": "b05ad80c8083098fdd044e5091a7a9487f4da43c3ce4bb249cde7de6f989b199",
+      "notes": "Validation over shared fixtures, placement, revisions/undo/redo/reset/duplicates, drag timing, mapping. One planted overlap mutant was killed."
+    },
+    {
+      "id": "P1-input-to-command-playmode",
+      "phase": 1,
+      "required": true,
+      "status": "pass",
+      "command_or_procedure": "Unity PlayMode -testCategory Experience: 12 tests through the real Interaction SDK Grabbable",
+      "environment": "MacBook Air Mac17,3, Apple M5 arm64, 24 GB, macOS 26.6 (25G72); Unity 6000.6.8f1; Meta XR Core/Interaction 207.0.1; OpenXR 1.17.1; Meta XR Simulator 207.1.0",
+      "evidence_path": "artifacts/phase-1/playmode.xml",
+      "evidence_sha256": "aed90f3680d9555affd4007e0420458fb9e66d79b96f946e84024e3a77104987",
+      "notes": "Synthetic pointer events: validates wiring, not hand-tracking quality."
+    },
+    {
+      "id": "P1-manual-simulator-walkthrough",
+      "phase": 1,
+      "required": true,
+      "status": "not_run",
+      "command_or_procedure": "Person runs Bootstrap in the editor with Meta XR Simulator: create with hands, grab/move console, invalid drop, undo/redo/reset, zoom/recenter",
+      "environment": "MacBook Air Mac17,3, Apple M5 arm64, 24 GB, macOS 26.6 (25G72); Unity 6000.6.8f1; Meta XR Core/Interaction 207.0.1; OpenXR 1.17.1; Meta XR Simulator 207.1.0",
+      "evidence_path": null,
+      "evidence_sha256": null,
+      "notes": "Requires interactive simulator input (keyboard/mouse hands); procedure in docs/progress.md."
+    },
+    {
+      "id": "P1-android-build-healthy",
+      "phase": 1,
+      "required": true,
+      "status": "pass",
+      "command_or_procedure": "BuildAndroid from clean commit; tree clean after build",
+      "environment": "MacBook Air Mac17,3, Apple M5 arm64, 24 GB, macOS 26.6 (25G72); Unity 6000.6.8f1; Meta XR Core/Interaction 207.0.1; OpenXR 1.17.1; Meta XR Simulator 207.1.0",
+      "evidence_path": "artifacts/phase-1/apk-manifest.json",
+      "evidence_sha256": "01f161aae074af0fed1b990a4547585902a91bdc26796574aca0ed19d3baa69b",
+      "notes": "135f1fa, sha256 2ac67bfc...; working_tree_dirty false."
+    },
+    {
+      "id": "P1-drag-loss-automated",
+      "phase": 1,
+      "required": true,
+      "status": "pass",
+      "command_or_procedure": "EditMode DragController tests (200 ms freeze / 1000 ms cancel / no commit on reacquisition) + PlayMode cancel/focus-loss/second-hand",
+      "environment": "MacBook Air Mac17,3, Apple M5 arm64, 24 GB, macOS 26.6 (25G72); Unity 6000.6.8f1; Meta XR Core/Interaction 207.0.1; OpenXR 1.17.1; Meta XR Simulator 207.1.0",
+      "evidence_path": "artifacts/phase-1/editmode.xml",
+      "evidence_sha256": "b05ad80c8083098fdd044e5091a7a9487f4da43c3ce4bb249cde7de6f989b199",
+      "notes": "Automated checks defined and passing."
+    },
+    {
+      "id": "P1-drag-loss-device",
+      "phase": 1,
+      "required": true,
+      "status": "blocked",
+      "command_or_procedure": "AC12 on a Quest: lose hand tracking mid-drag",
+      "environment": "Quest 3/3S",
+      "evidence_path": null,
+      "evidence_sha256": null,
+      "notes": "No headset connected to this session."
+    },
+    {
+      "id": "P1-backend-deployment-record",
+      "phase": 1,
+      "required": true,
+      "status": "pass",
+      "command_or_procedure": "Record exact backend/model deployment configuration or the concrete blocker",
+      "environment": "n/a",
+      "evidence_path": "docs/progress.md",
+      "evidence_sha256": "26b9ef045238b1516633284219dc70a4926c5258a45fc95df1e21396e1efc22f",
+      "notes": "Recorded as blocked (P0-model-access-deployment). Phase 1 workstream C (recording upload, ASR jobs) not started for that reason."
     }
   ],
   "blockers": [
-    {
-      "id": "B-unity-install",
-      "gates": [
-        "P0-toolchain-recorded",
-        "P0-unity-imports-compiles",
-        "P0-simulator-hand-sample",
-        "P0-android-apk"
-      ],
-      "human_action": "Install Unity Hub, sign in, activate a Unity licence, install the latest Unity 6000.3 LTS editor with Android Build Support (OpenJDK + Android SDK & NDK Tools); install Meta XR Simulator for macOS."
-    },
     {
       "id": "B-provider-budget",
       "gates": [
         "P0-model-access-deployment"
       ],
-      "human_action": "Choose ASR/intent provider(s) and hosting, and approve a spending cap (or confirm a zero-cost path) for the judge-facing backend."
+      "human_action": "Choose ASR/intent provider(s), hosting and a spending cap (deferred by owner)."
     },
     {
       "id": "B-second-contributor",
       "gates": [
-        "P0-clean-checkout-repeat"
+        "P0-second-contributor-repeat"
       ],
-      "human_action": "A second team member clones the repo and repeats setup/build after Unity work lands."
+      "human_action": "A second team member clones and repeats setup/build."
+    },
+    {
+      "id": "B-manual-simulator",
+      "gates": [
+        "P1-manual-simulator-walkthrough"
+      ],
+      "human_action": "Run the documented simulator walkthrough and record the outcome."
+    },
+    {
+      "id": "B-quest-device",
+      "gates": [
+        "P1-drag-loss-device"
+      ],
+      "human_action": "Connect a Quest 3/3S in developer mode for device checks."
+    },
+    {
+      "id": "B-parallel-workers",
+      "gates": [
+        "P0-worker-isolation"
+      ],
+      "human_action": "Decide whether to run the four-agent model; if yes, verify worktree isolation first."
     }
   ],
   "completed_phases": [],
-  "next_action": "Resolve B-unity-install, then create app-unity/ (A). Meanwhile start M1 pure-core contracts consumption (B) outside Unity."
+  "next_action": "Phase 2 core: segment-vs-expanded-rectangle evaluator in Tryscape.Core reproducing contracts/v1/fixtures/evaluation/expectations.json."
 }

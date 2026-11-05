@@ -1,53 +1,60 @@
 # Tryscape progress
 
-Last updated: 5 November 2026 · Current phase: **0 / M0 — blocked** · Authoritative gate state: [`docs/progress/phase-state.json`](progress/phase-state.json) (check with `python3 scripts/check_release.py --phase 0`).
+Last updated: 5 November 2026 · Integration commit `135f1fa` · Authoritative gate state: [`docs/progress/phase-state.json`](progress/phase-state.json) (`python3 scripts/check_release.py --phase 0` / `--phase 1`).
 
-Moving Day is still the **provisional** reference pack (demo-scope D01). Nothing below claims the app works on a headset, in the simulator, or with voice.
+| Phase | Status | Open gates |
+| --- | --- | --- |
+| 0 / M0 baseline | **Technical baseline complete; phase blocked** on owner/human items | second-contributor repeat, worker-isolation decision, model/provider + deployment (deferred by owner) |
+| 1 hand-driven slice | **Implemented and automated-verified; phase blocked** on manual/device checks | manual simulator walkthrough, Quest lost-tracking check (AC12) |
+
+Moving Day is still the **provisional** reference pack. Nothing here claims a headset run, voice creation or route evaluation.
 
 ## Implemented and verified
 
-| Item | Where | Evidence |
-| --- | --- | --- |
-| Local Git repository (no remote) with baseline commit of the original spec package | `9f35e64` | `git log` |
-| Ignore/attributes/editorconfig for Unity, Python, secrets, models, recordings and artifacts | `.gitignore`, `.gitattributes`, `.editorconfig` | Staged-file review showed no venv/cache/secret files |
-| v1 JSON Schemas: SceneSpec, catalog, command envelope/result, EvaluationResult, SceneProposal, API bodies (sessions, proposal request, job, error envelope) | `contracts/v1/schemas/` | `check_contracts.py` meta-validates every schema |
-| Shared fixtures: 11 valid scenes (F01–F04, 7×6 m variant, measured, quarter turn, 4 boundary), 20 shape-invalid, 14 semantic-invalid, proposals, commands, API, results | `contracts/v1/fixtures/` | 141 checks pass, exit 0 |
-| Expected F01–F04 + boundary outcomes, transcribed from demo-scope D06 / S08.2 with written derivations | `contracts/v1/fixtures/evaluation/expectations.json` | Test-only exact-rational reference evaluator matches all 11 cases; 5 deliberate mutations were each caught |
-| Contract checker (strict JSON, schema, semantic codes, reference evaluator, entity-order invariance) | `scripts/check_contracts.py` (+ `.lock`) | `uv run --locked scripts/check_contracts.py` |
-| Release/gate reporter (missing gate = failure; verifies evidence hashes) | `scripts/check_release.py` | Exits 1 on the current blocked state, as it should |
-| Backend baseline: FastAPI app factory, fail-closed settings, `/health/live`, `/health/ready`, `POST /v1/anonymous-sessions` (hash-only storage, 1 h expiry, no-store), S13.3 error envelope, request IDs, 16 KiB pre-parse body limit, strict JSON | `services/api/src/tryscape_api/` | 78 pytest tests against real PostgreSQL 18; ruff, format, mypy strict clean |
-| R0 schema migration: `anonymous_sessions`, `jobs`, `idempotency_records`, `consents` (no R1 tables) | `services/api/migrations/versions/0001_*` | Upgrade/downgrade/upgrade round trip and model-drift test |
-| Pydantic contract mirrors with parity tests against the shared fixtures | `services/api/src/tryscape_api/contracts/models.py` | `tests/test_contract_parity.py` |
-| Clean-clone repeat of contracts + backend checks | fresh clone of `4976e6a` | All exit 0 (same machine and user, so not the second-contributor gate) |
+| Item | Evidence |
+| --- | --- |
+| Git repo, ignore/attributes, contracts/v1, contract checker (141 checks) | `uv run --locked scripts/check_contracts.py` |
+| Backend baseline: health, anonymous sessions, error envelope, body limits, R0 migration | 78 pytest tests on PostgreSQL 18; ruff/format/mypy clean |
+| Unity project `app-unity/` (6000.6.8f1, URP, OpenXR 1.17.1, Meta 207.0.1) created and configured headlessly | `ProjectConfigurator.VerifyBatch`: 0 problems |
+| Hand-interaction sample + Tryscape rig on Meta XR Simulator 207.1 (tracked simulated hands, enabled interactors, zero error/assert/exception logs) | `scripts/run_xrsim_smoke.sh`: 2/2 |
+| Android ARM64 IL2CPP development APK from a clean commit; tree stays clean after build | `artifacts/phase-1/apk-manifest.json` (commit `135f1fa`, sha256 `2ac67bfc…`) |
+| Clean clone, no `Library/`: full import + APK build | clone of `c90a36c`, 10m57s, exit 0 |
+| **Tryscape.Core**: immutable SceneSpec, catalog, doubled-mm footprints, semantic validator, placement rules, `SceneSession` (atomic commands, expected revision, undo/redo/reset as new revisions, bounded duplicate cache) | EditMode 82/82 |
+| **Infrastructure**: strict SceneSpec reader (duplicate keys, quotes, comments, NaN, size, no date coercion) | fixture parity tests |
+| **Application**: `EditingSession`, `DragController` (one owner, 200 ms freeze, 1000 ms cancel, no commit on reacquisition), model mapping | EditMode |
+| **Moving Day pack**: catalog (identical to contract fixture) and template; fixed internal coordinates for 5–8 m rooms | EditMode (F01/F02 reproduced) |
+| **Unity slice**: hands-only creation (width/depth/console/route), Interaction SDK grab + ray grab of the console with floor preview (outline, stripes, reason text), invalid drop returns, rotate quarter turn, route switch, undo/redo/reset, tabletop zoom/recenter, focus-loss cancel | PlayMode Experience 12/12 via the real `Grabbable` |
+| Security fixes: Meta DevAgent token/IP stripped from builds (0 hits in APK), token purged from git history | APK scan |
 
-## In progress
+## Blocked / not run (needs a person)
 
-Nothing is running in the background. The next unblocked work is listed under "Next".
+| Item | Exact action |
+| --- | --- |
+| **Model/provider + deployment** (deferred by owner) | Choose ASR/intent provider(s), hosting and spending cap. Until then: no transcription/proposal job routes, no voice capture, and Phase 1 workstream C (recording upload/ASR jobs) is not started. |
+| **Manual simulator walkthrough** (P1) | See procedure below; record pass/fail and any issue. |
+| **Quest device checks** (AC12 lost tracking; install/launch of the APK) | Connect a Quest 3/3S in developer mode. The APK at `artifacts/builds/tryscape-dev.apk` has never been installed. |
+| **Second contributor** repeat (S03.1) | Another team member: clone, open with Unity 6000.6.8f1, apply the two machine fixes in `docs/environment/m0-environment.md`, run the commands in `README.md`. |
+| **Four-agent execution** (phases.md) | Decide whether to use parallel workers. Everything so far ran sequentially in one agent. |
 
-## Blocked (needs a human action)
+### Manual simulator walkthrough (P1-manual-simulator-walkthrough)
 
-| Blocker | Blocks | Exact action |
-| --- | --- | --- |
-| **B-unity-install** | Unity project, OpenXR/Meta config, simulator hand sample, Android APK, toolchain pin | 1. Install Unity Hub for macOS (Apple Silicon). 2. Sign in and activate a licence (Personal if eligible). 3. Install the latest **Unity 6000.3 LTS** editor with **Android Build Support → OpenJDK + Android SDK & NDK Tools**. 4. Install the standalone **Meta XR Simulator for macOS** from Meta's developer site. 5. Tell the agent the editor path, e.g. `export TRYSCAPE_UNITY_EDITOR="/Applications/Unity/Hub/Editor/6000.3.<patch>/Unity.app/Contents/MacOS/Unity"`. |
-| **B-provider-budget** | Real ASR/intent-model access, judge-reachable HTTPS deployment (AC02, AC23, AC29) | Owner decides: (a) ASR and intent-model provider(s) or self-hosted models, (b) a hosting account, (c) a spending cap. Approved spending is currently **zero** and no free quota is assumed. See the recommendation in `docs/progress/phase-0-summary.md`. |
-| **B-second-contributor** | Clean-checkout gate | After Unity lands, a second team member clones and repeats setup/build on their machine. |
-| **Quest hardware** | All device gates (AC12, AC21–AC24) | Confirm which Quest 3/3S devices the team has and enable developer mode. Not needed for M0 itself. |
+1. Open `app-unity` in Unity 6000.6.8f1. If prompted, run *Tryscape → Import Interaction SDK Example Scenes*. Open `Assets/Tryscape/Scenes/Bootstrap.unity`.
+2. In Meta's XR Simulator menu, activate the simulator, then press Play.
+3. Use simulated hands only. Press **Create with hands**, try **+0.5** width, then **Create example room**.
+4. Pinch-grab or ray-grab the console. Drag it south (towards you) and release on clear floor: it should snap, and status should show a new revision.
+5. Drag it onto the sofa and release: red striped outline with "Overlaps the sofa's starting position"; the console returns.
+6. **Rotate**, **Switch route**, **Undo** ×2, **Redo**, **Reset**: revisions only increase; Reset restores the original layout.
+7. **Larger/Smaller/Recenter**: presentation changes; the room's dimension label is unchanged.
+8. Record the outcome in `phase-state.json` (or report it), including anything awkward about reach, text size or panel placement.
 
-## Not run / unverified
+## Known limitations (deliberate, not bugs)
 
-- Four-agent parallel execution (phases.md S3): this session ran Phase 0 **sequentially as one agent**. `.claude/agents/` definitions don't exist yet, and worktree isolation is unverified.
-- Anything in Unity: no `app-unity/` exists. No project YAML, `.meta`, `ProjectVersion.txt` or lockfiles were fabricated.
-- C# consumption of the shared fixtures (M1).
-- Canonical serializer and scene hashes (S09.1). Result fixtures carry a placeholder hash and are named `shape_example_*`.
-- Session-issuance IP/global rate limits: not implemented, and required before any public deployment (S13.2).
-- `scripts/check_content.py`: not implemented (there are no assets yet).
+- No route evaluation, replay, explanation or comparison yet (Phase 2). Route lines are visual only.
+- No local save/load (Phase 4). "Open saved" and "Speak a situation" explain that they are unavailable.
+- The sofa is not hand-selectable (its label is always shown). Locomotion and teleport interactors from Meta's comprehensive rig are still present; consider disabling them for seated use.
+- Greybox art; legacy `TextMesh`/uGUI text; panel sizes are untested for comfort.
+- Unity 6.6 is not an LTS release (decision D11).
 
-## Planned (not started)
+## Next smallest task
 
-M1 core (state, commands, evaluator in C#) · M2 hands-only rehearsal · M3 deployed voice creation (transcription/proposal jobs, worker leases, idempotency, consent, retention) · M4 device quality · M5 submission. See `phases.md` and technical-spec S22.
-
-## Next
-
-1. **When Unity is installed (A):** create `app-unity/` through Unity Hub with the URP template, add Meta XR SDK 207.0 and OpenXR, enable the Meta Quest feature group for Android and Standalone, open an Interaction SDK hand sample in the simulator, add `Tryscape.Editor.BuildCli.BuildAndroid`, build an ARM64 IL2CPP development APK, and pin `ProjectVersion.txt`, `manifest.json` and `packages-lock.json`.
-2. **Unblocked now (B, smallest task):** create `Tryscape.Core` value types (`Rational`, `Footprint`, `SceneSpec` DTOs) plus a segment-vs-expanded-rectangle evaluator that reproduces `evaluation/expectations.json`. Its EditMode tests run once Unity is available, or in a .NET harness if one is approved.
-3. **After the provider decision (C):** add the provider adapter and settings, then the transcription/proposal job routes with idempotency, session scoping, the worker lease loop and cancellation.
+Phase 2, workstream B: implement the continuous segment-vs-expanded-rectangle evaluator in `Tryscape.Core` (doubled-mm integers, exact rational entry fractions, earliest-violation tie-breaks). It must reproduce all 11 cases in `contracts/v1/fixtures/evaluation/expectations.json`, with EditMode tests that do not mirror the implementation formula.

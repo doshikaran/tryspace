@@ -1,61 +1,61 @@
 # M0 environment record
 
-Recorded 4–5 November 2026 (IST) by the Claude Code session on the primary development Mac. Everything here was observed with commands on this machine unless marked **candidate** (chosen from official documentation, not yet installed or tested).
+Recorded 4–5 November 2026 (IST) on the primary development Mac. Every version below was observed with commands or lockfiles on this machine.
 
 ## Host
 
 | Item | Observed |
 | --- | --- |
-| Model | MacBook Air, `Mac17,3` |
-| CPU / architecture | Apple M5, 10 cores, `arm64` native (`sysctl.proc_translated = 0`, not Rosetta) |
-| GPU | Apple M5, Metal 4 |
-| Memory | 24 GB |
-| OS | macOS 26.6 (build 25G72) |
-| Free disk | ~265 GiB on `/` |
+| Model | MacBook Air `Mac17,3`, Apple M5, 10 cores, `arm64` native (`sysctl.proc_translated = 0`) |
+| GPU / memory | Apple M5 (Metal 4) / 24 GB |
+| OS | macOS 26.6 (25G72) |
+| Free disk | ~265 GiB at M0 start |
 
-## Installed tools
+## Pinned XR toolchain (installed and exercised)
 
-| Tool | Version / state | Relevant to |
+| Component | Version | Evidence / note |
 | --- | --- | --- |
-| Git | 2.50.1 (Apple Git-155) | Repository |
-| Python | 3.12.8 (`/opt/homebrew/bin/python3.12`); default `python3` is 3.14.7 | Backend uses 3.12 via `.python-version` |
-| uv | 0.7.22 | Backend and script locking |
-| PostgreSQL | 18.0 (Homebrew `postgresql@18`, running as a launchd service, socket `/tmp:5432`) | Backend tests and local dev |
-| Node | 20.19.1 (nvm) | Not used |
-| Homebrew | 7.0.12 | Package source |
-| Xcode | Command Line Tools only (`/Library/Developer/CommandLineTools`) | Not required for Android |
-| **Unity Hub / Editor** | **Not installed** (no app bundles found by Spotlight or under `/Applications`) | M0 blocker |
-| **JDK** | **Not installed** (`java` stub only) | Supplied by Unity Android module |
-| **Android SDK / adb** | **Not installed** | Supplied by Unity Android module; `adb` needed for device install |
-| **Meta XR Simulator** | **Not installed** | M0 blocker |
-| .NET SDK / Mono | Not installed | Optional; see "Pure-core tests outside Unity" |
-| Docker | Not installed | Not required for M0 |
-| `gh` | Not installed | Not needed: no remote is created |
+| Unity Editor | **6000.6.8f1** (Unity 6.6, revision 237b6593792b, arm64) | `app-unity/ProjectSettings/ProjectVersion.txt`. Unity labels 6.6 a *Supported* (non-LTS) release; see decision D11 in technical-spec S24. |
+| Render pipeline | URP 17.6.0 (template `com.unity.template.urp-blank-17.2.6`) | `Packages/packages-lock.json` |
+| Meta XR Core SDK | **207.0.1** | Meta scoped registry `https://npm.developer.oculus.com` |
+| Meta XR Interaction SDK (+ OVR integration) | **207.0.1** | single SDK family; no mixed majors |
+| Unity OpenXR | **1.17.1** | Meta Core 207's version defines reference up to 1.17.0-pre.2; 1.19.0 was not chosen |
+| XR Management / XR Hands / XR Core Utils | 4.6.1 / 1.9.0 / 2.6.0 | lockfile |
+| Newtonsoft JSON (Unity) | 3.2.2 | lockfile |
+| Unity Test Framework | 1.8.0 (built-in) | lockfile |
+| Meta XR Simulator | **207.1** (`207.1.0.49.123`, arm64, `/Applications/MetaXRSimulator.app`) | OpenXR runtime "Meta XR Simulator" 207.1.0, OpenXR API 1.1.54 reported in smoke tests |
+| Android Build Support | OpenJDK 17.0.18+8, SDK build-tools 36.0.0, platform-tools 37.0.1, platforms 34/36/37, cmdline-tools 16.0, Gradle 9.3.1 / AGP 9.1.1 | Unity Hub modules under `PlaybackEngines/AndroidPlayer` |
+| Android NDK | **r27c (27.2.12479018)** at `AndroidPlayer/SDK/ndk/27.2.12479018` | See "Machine fixes" below |
+| CMake | 3.22.1 | Installed by `sdkmanager` (see below) |
+| Unity licence | Entitlement licence present; batch mode resolves it headless | `~/Library/Unity/licenses/UnityEntitlementLicense.xml` |
 
-Local databases created during M0 on the Homebrew server: `tryscape_dev` (migrated), and test databases `tryscape_test`, `tryscape_migration_test`, `tryscape_cleanclone_test`. Tests recreate them, so it's safe to drop them all.
+Player configuration, set and verified by `Tryscape.Editor.ProjectConfigurator` (`VerifyBatch` fails on any mismatch): application ID `com.tryscape.app` (**provisional**, not registered with a Meta app); IL2CPP; ARM64 only; min API 32 and target API 34 (Meta 207 rules); Vulkan only; linear colour; landscape-left; OpenXR loader on Android and Standalone; Meta Quest Support, Meta XR, Hand Tracking Subsystem, Meta Hand Tracking Aim and Oculus Touch profile features; hand tracking `ControllersAndHands` at HIGH frequency.
 
-## XR toolchain candidates (not installed, not yet tested)
+## Machine fixes applied during M0 (reproduce on new machines)
 
-| Component | Candidate | Basis |
+1. **CMake 3.22.1 missing** even though the Hub marked the module as selected:
+   `JAVA_HOME=<AndroidPlayer>/OpenJDK <AndroidPlayer>/SDK/cmdline-tools/16.0/bin/sdkmanager --sdk_root=<AndroidPlayer>/SDK --install "cmake;3.22.1"`
+2. **Embedded NDK folder incomplete** (`AndroidPlayer/NDK` lacks `source.properties`). Set `TRYSCAPE_ANDROID_NDK_ROOT=<AndroidPlayer>/SDK/ndk/27.2.12479018` for builds. `BuildCli` validates it and records the revision in the build manifest. The setting persists in this machine's EditorPrefs.
+
+## Known toolchain issues
+
+| Issue | Impact | Handling |
 | --- | --- | --- |
-| Unity Editor | Latest **6000.3 LTS** patch offered by Unity Hub at install time; record the exact `6000.3.xfy` in `ProjectVersion.txt` | Unity 6.0 LTS support ended October 2026; 6.3 LTS is supported until December 2027. technical-spec S03 already prefers 6000.3. Meta's minimum is 6000.0.66f2. |
-| Android modules | Unity Hub "Android Build Support" + "OpenJDK" + "Android SDK & NDK Tools" | Unity 6.3 lists OpenJDK 17, Android SDK API 35 and NDK r27c as Hub defaults; Gradle 9.1.0 / AGP 9.0.0; minimum Android API 25. |
-| Meta XR SDK | All-in-One **207.0** (Core, Interaction SDK Essentials, Audio, Haptics); no mixed major families | Meta download page lists 207.0 with minimum Unity 6000.0.66f2. |
-| XR provider | Unity OpenXR plugin with the Meta Quest feature group; **1.15.x** candidate per spec; take the version the Meta packages resolve and lock it | Meta recommends OpenXR; simulator needs OpenXR ≥ 1.13.0. |
-| Simulator | **Standalone Meta XR Simulator for macOS (Apple Silicon)**; installs under `~/Library/MetaXR/MetaXRSimulator/<version>`. Don't use the deprecated UPM simulator or the old Homebrew build. | Meta docs: macOS support is ARM-only, needs OpenXR ≥ 1.13 and SDK ≥ v66. This M5 Mac is ARM, so it qualifies on paper. **macOS 26.6 + M5 compatibility is unverified.** |
+| Intermittent editor shutdown abort, exit 134 (`libc++abi: terminate_handler unexpectedly returned`) after a step has finished; seen in about 1 in 4 runs, near Meta native telemetry teardown | A raw exit code can misreport a successful step | `scripts/unity_batch.sh` accepts 134 only when the teardown signature **and** the step's success marker are both present and there are no compile errors; callers still check result XML or APK manifests |
+| Meta DevAgent build processor injects this Mac's LAN IP and Remote Agent token into `Resources/DevAgentSettings` on **every** build | Credential leak into APKs | `StripDevAgentCredentials` (build preprocessor, order 100) blanks both; the asset is git-ignored; APK scan found 0 token hits |
+| Meta agentic "operator" AAR (screen-capture foreground permission, open port) | Present in Development builds only | Meta's own processor excludes it from release builds; verify when the first release build exists |
+| Headless first import left 66 orphaned OpenXR settings sub-assets | Every Android build re-serialized the file | `ProjectConfigurator` removes unreachable sub-assets; `VerifyBatch` fails if any return |
+| Meta editor telemetry runs in batch mode | Privacy/CI noise | Owner preference (EditorPrefs); not changed by tooling |
 
-Exact versions are pinned only after a successful baseline build (technical-spec S03, D08).
+## Other tools
+
+Git 2.50.1; Python 3.12.8 (default `python3` 3.14.7); uv 0.7.22; PostgreSQL 18.0 (Homebrew, running); Homebrew 7.0.12; Xcode Command Line Tools only. Not installed: Docker, .NET SDK, `gh`, standalone `adb` (Unity's `platform-tools/adb` exists).
+
+Local databases created on the Homebrew server: `tryscape_dev` plus test databases ending in `_test`. All of them can be safely dropped.
 
 ## Sources checked (5 November 2026)
 
-- Meta XR All-in-One SDK (UPM): https://developers.meta.com/vr/downloads/package/meta-xr-sdk-all-in-one-upm/
-- Meta XR Simulator overview / macOS: https://beta.developers.meta.com/horizon/documentation/unity/xrsim-intro/ and https://developers.meta.com/vr/documentation/unity/unity-simulate-xrsim/
-- Unity 6 support lifecycle: https://unity.com/releases/unity-6/support
-- Unity 6.3 system requirements: https://docs.unity.com/en-us/engine/6000.3/manual/get-started/install-and-upgrade/getting-started-installing-unity/system-requirements
-- Unity Android dependency versions: https://docs.unity3d.com/Manual/android-supported-dependency-versions.html
-
-Re-check these pages at install time. If the Hub offers a different 6000.3 patch or Meta has released a newer SDK family, record the actual choice here and don't mix families.
-
-## Pure-core tests outside Unity (option, not adopted)
-
-`Tryscape.Core` must compile under Unity's C# profile. Installing the .NET SDK (`brew install --cask dotnet-sdk`, free) would let a `netstandard2.1`/C# 9 test project run core tests without a Unity licence, which helps CI. It would be a second test harness alongside Unity EditMode tests, so it needs an explicit decision in M1. Not installed.
+- Meta XR SDK All-in-One: https://developers.meta.com/vr/downloads/package/meta-xr-sdk-all-in-one-upm/
+- Meta XR Simulator (macOS, Apple Silicon): https://developers.meta.com/vr/documentation/unity/unity-simulate-xrsim/
+- Unity 6 release support: https://unity.com/releases/unity-6/support and https://discussions.unity.com/t/unity-6-6-is-now-available/1735357
+- Unity 6.3 requirements and Android dependencies: https://docs.unity.com/en-us/engine/6000.3/manual/get-started/install-and-upgrade/getting-started-installing-unity/system-requirements, https://docs.unity3d.com/Manual/android-supported-dependency-versions.html

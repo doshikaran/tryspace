@@ -60,3 +60,24 @@ Approve a small, explicitly capped budget for **hosted, pay-per-request ASR and 
 - **C:** provider comparison once candidates or a cap are named; then the job routes, worker, idempotency and consent.
 - **D:** acceptance checklist (AC01–AC32) evidence template, `check_content.py`, licence register.
 - **Coordinator:** create `.claude/agents/` definitions and verify worktree isolation before any parallel writes.
+
+## Update — 5 November 2026 (after Unity and simulator installation)
+
+The owner installed Unity 6000.6.8f1 with Android support and Meta XR Simulator 207.1. The XR half of M0 was completed and verified:
+
+| Gate | Status now | Evidence |
+| --- | --- | --- |
+| Toolchain recorded | pass | `docs/environment/m0-environment.md` (exact versions, machine fixes, known issues) |
+| Unity imports/compiles | pass | headless template creation; `ProjectConfigurator.VerifyBatch` 0 problems |
+| Simulator hand sample | pass (automated) | Meta HandGrabExamples + Tryscape rig on the simulator runtime; strict log check |
+| First Android APK | pass | first built at `0ab2de6`; current `135f1fa` (arm64-v8a, IL2CPP, API 32/34) |
+| Clean checkout repeat | pass (same machine) | clone of `c90a36c`, full import and build, 10m57s |
+| Second-contributor repeat | blocked | needs a human |
+| Worker isolation | not run | sequential single-agent execution |
+| Model access / deployment | blocked | owner deferred the decision |
+
+Toolchain decisions: Unity 6.6 (non-LTS) accepted as installed (D11); Meta 207.0.1 family; OpenXR 1.17.1 chosen to match Meta's version defines; development-build NDK override and CMake installation recorded.
+
+Security and reproducibility issues found and fixed: the Meta DevAgent build processor injected a LAN IP and access token into every APK (now stripped, token purged from git history); 66 orphaned OpenXR settings sub-assets caused build churn; and the code-generated rig was missing scene references (see the Phase 1 summary).
+
+Phase 0 remains **blocked** only on the three items above. Phase 1 proceeded because its prerequisites (the baseline and v1 contracts) were integrated.
