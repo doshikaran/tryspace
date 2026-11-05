@@ -127,7 +127,50 @@ namespace Tryscape.Editor
                 var feature = FeatureHelpers.GetFeatureWithIdForBuildTarget(group, id);
                 Check(feature != null && feature.enabled, $"OpenXR feature {id} on {group}");
             }
+            Check(RemoveOrphanedOpenXRSubAssets(apply: false) == 0, "no orphaned OpenXR settings sub-assets");
             return problems;
+        }
+
+        const string OpenXRPackageSettingsPath = "Assets/XR/Settings/OpenXR Package Settings.asset";
+
+        /// <summary>
+        /// Headless first import can leave unreferenced duplicate OpenXRSettings (and their feature sub-assets) in the
+        /// package settings file. They are invisible to the editor UI but make every Android build re-serialize the
+        /// asset differently. Remove every sub-asset not reachable from the package settings root.
+        /// </summary>
+        public static int RemoveOrphanedOpenXRSubAssets(bool apply)
+        {
+            var all = AssetDatabase.LoadAllAssetsAtPath(OpenXRPackageSettingsPath);
+            var main = AssetDatabase.LoadMainAssetAtPath(OpenXRPackageSettingsPath);
+            if (main == null || all.Length == 0)
+                return 0;
+            var reachable = new HashSet<UnityEngine.Object>();
+            var stack = new Stack<UnityEngine.Object>();
+            stack.Push(main);
+            while (stack.Count > 0)
+            {
+                var current = stack.Pop();
+                if (current == null || !reachable.Add(current))
+                    continue;
+                var iterator = new SerializedObject(current).GetIterator();
+                while (iterator.Next(true))
+                    if (iterator.propertyType == SerializedPropertyType.ObjectReference && iterator.objectReferenceValue != null &&
+                        AssetDatabase.GetAssetPath(iterator.objectReferenceValue) == OpenXRPackageSettingsPath)
+                        stack.Push(iterator.objectReferenceValue);
+            }
+            var orphans = new List<UnityEngine.Object>();
+            foreach (var asset in all)
+                if (asset != null && !reachable.Contains(asset))
+                    orphans.Add(asset);
+            if (apply && orphans.Count > 0)
+            {
+                foreach (var orphan in orphans)
+                    AssetDatabase.RemoveObjectFromAsset(orphan);
+                EditorUtility.SetDirty(main);
+                AssetDatabase.SaveAssets();
+                Debug.Log($"[Tryscape] Removed {orphans.Count} orphaned OpenXR sub-asset(s)");
+            }
+            return orphans.Count;
         }
 
         static Task RunMetaFixAll()
@@ -164,6 +207,7 @@ namespace Tryscape.Editor
             EnableFeatures(BuildTargetGroup.Android, AndroidFeatures);
             EnableFeatures(BuildTargetGroup.Standalone, StandaloneFeatures);
             AssetDatabase.SaveAssets();
+            RemoveOrphanedOpenXRSubAssets(apply: true);
         }
 
         static void AssignOpenXR(BuildTargetGroup group)
