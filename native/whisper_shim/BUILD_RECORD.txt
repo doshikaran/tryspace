@@ -1,0 +1,5 @@
+whisper.cpp commit: d1be6fde11ac6e0407606b4e42fe72d34add8037
+shim: native/whisper_shim/tryscape_whisper.c sha256 5b719c9f6711c92815fe3e440cdc3a8df9fb1abdca10d91d3c205280f47218f6
+ndk: 27.2.12479018
+app-unity/Assets/Plugins/Android/arm64-v8a/libtryscape_whisper.so: 2920560 bytes sha256 1c9bdd2f9708cc066f5d36800b2f14bd8b8b6c8a5fc9cded31ea4a843c34661a
+app-unity/Assets/Plugins/macOS/libtryscape_whisper.dylib: 1813064 bytes sha256 3b33b2156c2a3468b1444a0fe605a5b8d562af07ae798ea1e801228b9e31d919

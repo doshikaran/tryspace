@@ -1,16 +1,17 @@
 # Tryscape progress
 
-Last updated: 6 November 2026 · Integration commit `6f402ef` · Authoritative gate state: [`docs/progress/phase-state.json`](progress/phase-state.json) (`python3 scripts/check_release.py --phase 0` … `4`).
+Last updated: 7 November 2026 · Authoritative gate state: [`docs/progress/phase-state.json`](progress/phase-state.json) (`python3 scripts/check_release.py --profile r0`). Decision D12 (6 November): no server in R0; voice runs on the headset; passthrough, MRUK placement and gaze are required.
 
-| Phase | Status | Open gates |
+| Phase | Status | Open gates (all need a person, a Quest or the token) |
 | --- | --- | --- |
-| 0 / M0 baseline | **Technical baseline complete; phase blocked** on owner/human items | second-contributor repeat, worker-isolation decision, model/provider + deployment (deferred by owner) |
-| 1 hand-driven slice | **Implemented and automated-verified; phase blocked** on manual/device checks | manual simulator walkthrough, Quest lost-tracking check (AC12) |
-| 2 evaluation, replay, explanation | **Evaluator, replay, explanation and stale result implemented and automated-verified; phase blocked** | manual simulator walkthrough, backend intent extraction (provider decision), DevAgent token regeneration |
-| 3 creation flow | **Speech or typed text → transcription (whisper.cpp) → proposal → hand review → staged build → rehearsal implemented and automated-verified on this Mac against a local service, including real microphone capture (synthetic speech replayed); phase blocked** | model-assisted interpreter and deployment (provider decision), voice benchmark on a deployment, human-speech accuracy, DevAgent token, manual and Quest checks |
-| 4 comparison and persistence | **Attempt A/B comparison, read-only inspection with replay, and local save/open/delete with staged writes and recovery implemented and automated-verified (Editor, same-process restart); phase blocked** | simulator walkthrough steps 15–17, device kill/restart and background checks |
+| 0 / M0 baseline | Technical baseline complete; deployment gate not applicable (D12) | second-contributor repeat, worker-isolation decision |
+| 1 hand-driven slice | Implemented and automated-verified | manual simulator walkthrough, Quest lost-tracking check (AC12) |
+| 2 evaluation, replay, explanation | Implemented and automated-verified; backend intent gate not applicable (D12) | manual simulator walkthrough, DevAgent token regeneration |
+| 3 creation flow | Voice → on-device whisper.cpp → C# rule interpreter (Python parity on 38 cases) → review → staged build; automated-verified with **synthetic** speech | human speech on Mac, Quest voice benchmark (AC02/AC23), simulator walkthrough, Quest checks, DevAgent token |
+| 4 comparison and persistence | Implemented and automated-verified (Editor, same-process restart) | simulator walkthrough 15–17, device kill/restart |
+| 4b passthrough, MRUK, gaze, hand-loss pause | Implemented and automated-verified (fake room and hand sources; scene wiring); release APK built, secret scan clean | Quest: passthrough, placement in 3 unfamiliar rooms, gaze, hand-loss pause, 60 fps |
 
-Moving Day is still the **provisional** reference pack. Nothing here claims a headset run or voice creation. Phase 3 creation accepts **speech** (whisper.cpp on a **local developer service, not a judge-accessible deployment**) or typed development input, and interprets it with a **deterministic rule-based interpreter** (`deterministic_rules`, not an AI model); see [`phase-3-summary.md`](progress/phase-3-summary.md) and [`phase-3b-voice-summary.md`](progress/phase-3b-voice-summary.md). Route results are "in this model" (floor footprint only), never a physical guarantee.
+Moving Day is still the **provisional** reference pack. Nothing here claims a headset run. Voice creation runs on the headset path (whisper.cpp + `deterministic_rules`, a rule-based interpreter, **not an AI model**) and has been tested only with **synthetic** speech in the Mac Editor. Route results are "in this model" (floor footprint only), never a physical guarantee. Earlier phase detail is below and in `docs/progress/phase-*-summary.md`.
 
 ## Implemented and verified
 

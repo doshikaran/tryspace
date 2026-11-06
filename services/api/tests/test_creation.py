@@ -254,3 +254,12 @@ def test_extractor_is_deterministic() -> None:
     first = service().propose(text).model_dump()
     second = service().propose(text).model_dump()
     assert first == second
+
+
+def test_cross_runtime_parity_fixture_is_current() -> None:
+    """The C# on-device interpreter is checked against this fixture; it must reflect the current Python rules."""
+    from tryscape_api.creation import parity
+
+    assert parity.PARITY_PATH.read_text(encoding="utf-8") == parity.render(), (
+        "run: uv run python -m tryscape_api.creation.parity --write"
+    )

@@ -16,6 +16,10 @@ Versions are the pinned values from `app-unity/Packages/packages-lock.json`, `se
 | uGUI `com.unity.ugui` | 2.6.0 | Unity Companion License | yes |
 | Newtonsoft Json `com.unity.nuget.newtonsoft-json` | 3.2.2 | Unity Companion License for the package (wraps Newtonsoft.Json, MIT) | yes |
 | Unity Test Framework, NUnit | 1.8.0, 2.1.0 | Unity Companion License | no (Editor/tests) |
+| Meta MR Utility Kit `com.meta.xr.mrutilitykit` | 207.0.1 | Oculus SDK License Agreement (package LICENSE.md) | yes |
+| Unity AI Navigation `com.unity.ai.navigation` (MRUK dependency) | 2.0.16 | Unity Companion License | yes |
+| Tryscape speech plugin `libtryscape_whisper.so` (native/whisper_shim + whisper.cpp + ggml, static) | ABI 2, see native/whisper_shim/BUILD_RECORD.txt | MIT (whisper.cpp, ggml); shim is Tryscape-original | yes (arm64-v8a) |
+| Whisper model `ggml-base.en.bin` | sha256 `a03779c8…d6c002`, 147,964,211 B | MIT (OpenAI Whisper weights, converted by whisper.cpp) | yes (`assets/asr/`), installed by `scripts/fetch_asr_model.sh`, not in git |
 | Meta XR Simulator | 207.1.0 | Oculus SDK License Agreement | no (developer tool) |
 | Android NDK (override) | r27c (27.2.12479018) | Android SDK License | toolchain only |
 
@@ -36,7 +40,7 @@ Art: all scene geometry is Tryscape-original greybox (`tryscape_original_greybox
 | Dev only: pytest 9.2.0 (MIT), pytest-asyncio 1.4.1.post1 (Apache-2.0), ruff 0.17.3 (MIT), mypy 2.4.1 (MIT), jsonschema 4.26.0 (MIT) | | |
 | PostgreSQL server | 18 | PostgreSQL License |
 
-## Speech recognition (service host only; never in the APK or the repository)
+## Speech recognition for the optional development service (decision D12: the APK bundles its own copy, listed above)
 
 | Component | Version | Licence | Location |
 | --- | --- | --- | --- |

@@ -48,6 +48,19 @@ namespace Tryscape.Editor
             if (!ConfigureNdk())
                 return false;
 
+            // D12: voice runs on the headset; a build without the verified model and native library would ship broken voice.
+            var model = Tryscape.Unity.Creation.SpeechModel.StreamingPath;
+            if (!Tryscape.Unity.Creation.BundledModel.Verify(model))
+            {
+                Debug.LogError("[Tryscape] Speech model missing or not the pinned file; run scripts/fetch_asr_model.sh");
+                return false;
+            }
+            if (!File.Exists(Path.Combine(Application.dataPath, "Plugins", "Android", "arm64-v8a", "libtryscape_whisper.so")))
+            {
+                Debug.LogError("[Tryscape] Speech plugin missing; run scripts/build_whisper_plugin.sh android");
+                return false;
+            }
+
             EditorUserBuildSettings.SwitchActiveBuildTarget(BuildTargetGroup.Android, BuildTarget.Android);
             EditorUserBuildSettings.androidBuildSystem = AndroidBuildSystem.Gradle;
             EditorUserBuildSettings.exportAsGoogleAndroidProject = false;

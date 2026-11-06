@@ -139,6 +139,12 @@ namespace Tryscape.Editor
                 var feature = FeatureHelpers.GetFeatureWithIdForBuildTarget(group, id);
                 Check(feature != null && feature.enabled, $"OpenXR feature {id} on {group}");
             }
+            var androidSpeech = AssetImporter.GetAtPath(AndroidSpeechPlugin) as PluginImporter;
+            Check(androidSpeech != null && androidSpeech.GetCompatibleWithPlatform(BuildTarget.Android) &&
+                  !androidSpeech.GetCompatibleWithEditor(), "speech plugin ships for Android only");
+            var editorSpeech = AssetImporter.GetAtPath(EditorSpeechPlugin) as PluginImporter;
+            Check(editorSpeech != null && editorSpeech.GetCompatibleWithEditor() &&
+                  !editorSpeech.GetCompatibleWithPlatform(BuildTarget.Android), "macOS speech plugin is Editor only");
             Check(RemoveOrphanedOpenXRSubAssets(apply: false) == 0, "no orphaned OpenXR settings sub-assets");
             return problems;
         }
@@ -192,6 +198,32 @@ namespace Tryscape.Editor
                 OVRProjectSetup.FixAllAsync(BuildTargetGroup.Standalone));
         }
 
+        const string AndroidSpeechPlugin = "Assets/Plugins/Android/arm64-v8a/libtryscape_whisper.so";
+        const string EditorSpeechPlugin = "Assets/Plugins/macOS/libtryscape_whisper.dylib";
+
+        /// <summary>On-device speech (D12): the arm64 library ships only in the Android player; the macOS one only loads in the Editor.</summary>
+        static void ConfigureSpeechPlugins()
+        {
+            if (AssetImporter.GetAtPath(AndroidSpeechPlugin) is PluginImporter android)
+            {
+                android.SetCompatibleWithAnyPlatform(false);
+                android.SetCompatibleWithEditor(false);
+                android.SetCompatibleWithPlatform(BuildTarget.Android, true);
+                android.SetPlatformData(BuildTarget.Android, "CPU", "ARM64");
+                android.SaveAndReimport();
+            }
+            if (AssetImporter.GetAtPath(EditorSpeechPlugin) is PluginImporter editor)
+            {
+                editor.SetCompatibleWithAnyPlatform(false);
+                editor.SetCompatibleWithPlatform(BuildTarget.Android, false);
+                editor.SetCompatibleWithPlatform(BuildTarget.StandaloneOSX, false);
+                editor.SetCompatibleWithEditor(true);
+                editor.SetEditorData("OS", "OSX");
+                editor.SetEditorData("CPU", "ARM64");
+                editor.SaveAndReimport();
+            }
+        }
+
         static void ApplySettings()
         {
             PlayerSettings.companyName = "Tryscape";
@@ -220,6 +252,8 @@ namespace Tryscape.Editor
             metaConfig.anchorSupport = OVRProjectConfig.AnchorSupport.Enabled;
             metaConfig.eyeTrackingSupport = OVRProjectConfig.FeatureSupport.Supported;
             OVRProjectConfig.CommitProjectConfig(metaConfig);
+
+            ConfigureSpeechPlugins();
 
             AssignOpenXR(BuildTargetGroup.Android);
             AssignOpenXR(BuildTargetGroup.Standalone);

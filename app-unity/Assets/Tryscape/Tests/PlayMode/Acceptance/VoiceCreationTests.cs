@@ -166,7 +166,8 @@ namespace Tryscape.Tests.PlayMode.Acceptance
             Assert.That(_rig.App.Mode, Is.EqualTo(AppMode.RecordingVoice));
             if (!_rig.App.AudioConsentGiven)
             {
-                StringAssert.Contains("sent to the Tryscape creation service", _rig.App.VoiceText);
+                StringAssert.Contains("transcribed on this headset", _rig.App.VoiceText);
+                StringAssert.Contains("Nothing is sent anywhere", _rig.App.VoiceText);
                 Assert.That(_rig.Panel.IsInteractable("VoiceStop"), Is.False, "no recording before consent");
                 _rig.Press("VoiceAllow");
             }
@@ -316,7 +317,7 @@ namespace Tryscape.Tests.PlayMode.Acceptance
             yield return RecordAndStop();
             _asr.Calls[0].pending.SetResult(TranscriptionOutcome.Failed(ProposalFailure.Unavailable, "network_unreachable", true));
             yield return _rig.Until(() => _rig.App.Creation.State == CreationState.Failed, 2, "failure");
-            StringAssert.Contains("not reachable", _rig.App.Status);
+            StringAssert.Contains("not available", _rig.App.Status);
             Assert.That(_rig.Panel.IsInteractable("VoiceHands"), Is.True);
             Assert.That(_rig.Panel.IsInteractable("VoiceTypeInstead"), Is.True);
         }

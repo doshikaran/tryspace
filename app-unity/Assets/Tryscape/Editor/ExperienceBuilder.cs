@@ -81,6 +81,16 @@ namespace Tryscape.Editor
             gazeController.Configure(eyeGaze);
             app.ConfigureMixedReality(mixedReality, gazeController);
 
+            // S05.3: the rig's top-level hands (left and right) feed the hand-loss replay pause.
+            var hands = UnityEngine.Object.FindObjectsByType<Oculus.Interaction.Input.Hand>(FindObjectsInactive.Include, FindObjectsSortMode.None)
+                .Where(h => h.GetType() == typeof(Oculus.Interaction.Input.Hand)).ToList();
+            if (hands.Count == 0)
+                throw new InvalidOperationException("No Interaction SDK hands in the rig");
+            var watcher = appGo.AddComponent<HandTrackingWatcher>();
+            watcher.Configure(hands);
+            app.ConfigureHandTracking(watcher);
+            Debug.Log($"[Tryscape] Hand-loss watcher wired to {hands.Count} hand(s)");
+
             AssetDatabase.SaveAssets();
         }
 

@@ -289,7 +289,7 @@ namespace Tryscape.Tests.PlayMode.Acceptance
             yield return SubmitPreset(0);
             _provider.Calls[0].pending.SetResult(ProposalOutcome.Failed(ProposalFailure.Unavailable, "network_unreachable", true));
             yield return _rig.Until(() => _rig.App.Creation.State == CreationState.Failed, 2, "failure");
-            StringAssert.Contains("not reachable", _rig.App.Status);
+            StringAssert.Contains("not available", _rig.App.Status);
             StringAssert.Contains("Create with hands", _rig.App.Status);
             StringAssert.Contains("current scene is unchanged", _rig.App.Status);
             Assert.That(_rig.App.Session.Current, Is.SameAs(before));
@@ -419,7 +419,7 @@ namespace Tryscape.Tests.PlayMode.Acceptance
                 good.Assumptions, good.ProviderId, good.ProviderVersion);
             yield return Answer(0, tampered);
             Assert.That(_rig.App.Creation.State, Is.EqualTo(CreationState.Failed));
-            StringAssert.Contains("cannot accept", _rig.App.Status);
+            StringAssert.Contains("did not pass this app's checks", _rig.App.Status);
             Assert.That(_rig.App.Session, Is.Null);
         }
 

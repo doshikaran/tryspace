@@ -290,6 +290,39 @@ namespace Tryscape.Tests.PlayMode.Acceptance
             Assert.AreEqual(2, _tabletop.ZoomStep);
         }
 
+        sealed class FakeHands : IHandTrackingSource
+        {
+            public bool AnyHandTracked { get; set; } = true;
+        }
+
+        /// <summary>S05.3: losing both hands for 0.5 s pauses replay; it resumes only when the user presses Replay.</summary>
+        [UnityTest]
+        public IEnumerator LosingHandTrackingPausesReplayUntilTheUserResumes()
+        {
+            var hands = new FakeHands();
+            _app.UseHandTracking(hands);
+            yield return CreateExample(a => a.SetDraftObstruction(ObstructionState.ParkedSouth)); // clear route: a long replay
+            _panel.Press("Rehearse");
+            Assert.IsTrue(_app.Playback.IsPlaying);
+            yield return null;
+            hands.AnyHandTracked = false;
+            var start = Time.realtimeSinceStartup;
+            while (_app.Playback.IsPlaying && Time.realtimeSinceStartup - start < 3f)
+                yield return null;
+            Assert.IsFalse(_app.Playback.IsPlaying, "replay paused after hands were lost");
+            Assert.That(Time.realtimeSinceStartup - start, Is.GreaterThanOrEqualTo(0.45f), "not before the grace period");
+            StringAssert.Contains("hands are not tracked", _app.Status);
+            var paused = _app.Playback.ElapsedSeconds;
+
+            hands.AnyHandTracked = true;
+            for (var i = 0; i < 10; i++)
+                yield return null;
+            Assert.IsFalse(_app.Playback.IsPlaying, "never resumes by itself");
+            Assert.AreEqual(paused, _app.Playback.ElapsedSeconds, "no movement while paused");
+            _panel.Press("PlayPause");
+            Assert.IsTrue(_app.Playback.IsPlaying, "the user resumes by hand");
+        }
+
         [UnityTest]
         public IEnumerator SuspendAutosavesCommittedStateAndRestartOffersResume()
         {
@@ -557,7 +590,8 @@ namespace Tryscape.Tests.PlayMode.Acceptance
             Assert.AreEqual(AppMode.RecordingVoice, _app.Mode);
             Assert.IsFalse(_app.AudioConsentGiven);
             Assert.AreEqual(Tryscape.Application.Creation.RecorderState.Idle, _app.Recorder.State);
-            StringAssert.Contains("sent to the Tryscape creation service", _app.Status);
+            StringAssert.Contains("transcribed on this headset", _app.Status);
+            StringAssert.Contains("Nothing is sent anywhere", _app.Status);
             Assert.IsNull(_app.Session, "voice entry must not create a scene");
             _panel.Press("Menu");
             // "Open saved" now lists local projects; this test uses an empty temporary store, never the real data folder.

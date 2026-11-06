@@ -2,9 +2,9 @@
 
 **Understand the situation. Rehearse your options. Act prepared.**
 
-Tryscape turns a described situation into an interactive spatial rehearsal. Voice creates the initial environment through a Python AI backend; after that, hands do the editing, rehearsal, replay and comparison. The reference scenario, Moving Day, is **provisional**.
+Tryscape turns a described situation into an interactive spatial rehearsal in mixed reality. Voice or hands create the initial environment, which sits on your real table in passthrough; after that, hands (or gaze and pinch) do the editing, rehearsal, replay and comparison. **Everything runs on the headset; there is no server** (decision D12). The reference scenario, Moving Day, is **provisional**.
 
-> **Status:** M0 baseline, the Phase 1 hands-only editing slice, the Phase 2 route evaluator/replay/explanation, and Phase 3 creation from speech or typed text (microphone capture, whisper.cpp transcription jobs, proposal jobs, review, hand correction, staged build) are implemented and automated-verified on a developer Mac against a **local** service. Interpretation is a **deterministic rule-based parser** (`deterministic_rules`), not an AI model. Human-speech accuracy, model-assisted interpretation, deployment (provider decision deferred), on-headset validation are **not** done. Phase 4 adds Attempt A/B comparison and local save/open/delete (Editor-verified). See [docs/progress.md](docs/progress.md).
+> **Status:** all R0 development is implemented and automated-verified on a developer Mac (Editor, simulator, Android builds): hand and voice creation, the exact route evaluator with replay and explanations, Attempt A/B comparison, local projects with recovery, passthrough with MRUK table placement, gaze with hand-ray fallback, hand-loss replay pause, and on-device speech (whisper.cpp). Interpretation is a **rule-based parser** (`deterministic_rules`), not an AI model. **Nothing has run on a Quest yet**, and voice is tested only with synthetic speech. Not release-ready; see [docs/progress.md](docs/progress.md) and [docs/implementation-status.md](docs/implementation-status.md).
 
 ## Layout
 
@@ -44,6 +44,11 @@ adb reverse tcp:8000 tcp:8000                                # Quest dev build r
 ```bash
 export TRYSCAPE_UNITY_EDITOR=/Applications/Unity/Hub/Editor/6000.6.8f1/Unity.app/Contents/MacOS/Unity
 export TRYSCAPE_ANDROID_NDK_ROOT=/Applications/Unity/Hub/Editor/6000.6.8f1/PlaybackEngines/AndroidPlayer/SDK/ndk/27.2.12479018
+
+# On-device speech (once per clone): the native plugin binaries are committed, the 148 MB model is not (GitHub limit).
+scripts/fetch_asr_model.sh                 # installs + SHA-256-verifies app-unity/Assets/StreamingAssets/asr/ggml-base.en.bin
+scripts/build_whisper_plugin.sh all        # only after changing native/whisper_shim or the whisper.cpp pin
+(cd services/api && uv run python -m tryscape_api.creation.parity --write)   # only after an intentional interpreter change
 
 # Every step: --artifact files are deleted first and must be fresh afterwards; artifacts/unity/<step>.status.json
 # records Unity's exit code and clean_success vs success_with_shutdown_abort (add --strict to exit 3 on the latter).

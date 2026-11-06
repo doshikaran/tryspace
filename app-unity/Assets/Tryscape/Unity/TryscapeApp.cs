@@ -67,9 +67,13 @@ namespace Tryscape.Unity
         [SerializeField] ResultHighlight _highlight;
         [SerializeField] MixedRealityController _mixedReality;
         [SerializeField] GazeController _gaze;
+        [SerializeField] HandTrackingWatcher _handWatcher;
+        IHandTrackingSource _hands;
+        readonly HandLossPolicy _handLoss = new HandLossPolicy();
 
         const string PassthroughOffKey = "tryscape.passthrough.off";
         bool _creationServiceAvailable;
+        OnDeviceTranscriptionProvider _speech;
         readonly IIdGenerator _ids = new RandomIdGenerator();
         readonly IUtcClock _clock = new SystemUtcClock();
         RehearsalSession _rehearsal;
@@ -143,8 +147,8 @@ namespace Tryscape.Unity
 
         public const string OnboardingText =
             "Tryscape rehearses a sofa delivery in a model room. Results are illustrative: floor footprint only, with " +
-            "height, turning and lifting not assessed. Describe the room by voice (needs the creation service) or create " +
-            "it with hands, then move the console and rehearse.";
+            "height, turning and lifting not assessed. Describe the room by voice or create it with hands, then move " +
+            "the console and rehearse. Everything runs on this headset.";
         public bool DeleteArmed => _deleteArmed;
 
         /// <summary>Replaces local project storage (tests use a temporary directory).</summary>
@@ -154,8 +158,8 @@ namespace Tryscape.Unity
         public bool AudioConsentGiven => _audioConsentGiven;
 
         public const string AudioNotice =
-            "Your recording (up to 15 s) is sent to the Tryscape creation service to be transcribed, then deleted. " +
-            "Nothing is saved on this headset. The text is then interpreted by rule-based development code.";
+            "Your recording (up to 15 s) is transcribed on this headset and then discarded. Nothing is sent anywhere " +
+            "and no recording is saved. The text is interpreted by rule-based code (not an AI model).";
 
         /// <summary>
         /// Replaces the proposal and transcription sources, for tests or another adapter. Any in-flight operation is
@@ -168,6 +172,11 @@ namespace Tryscape.Unity
             {
                 _creation.Changed -= OnCreationChanged;
                 _creation.Dispose();
+            }
+            if (transcriber is OnDeviceTranscriptionProvider onDevice && !ReferenceEquals(onDevice, _speech))
+            {
+                _speech?.Dispose(); // the replaced built-in provider; suspension and low memory now release the active one
+                _speech = onDevice;
             }
             _creation = new CreationCoordinator(provider, new MovingDayProposals(_catalog), budget, transcriber);
             _creation.Changed += OnCreationChanged;
@@ -195,6 +204,11 @@ namespace Tryscape.Unity
         }
 
         public MixedRealityController MixedReality => _mixedReality;
+
+        /// <summary>S05.3: replay pauses when both hands stop being tracked. Tests inject a fake source.</summary>
+        public void UseHandTracking(IHandTrackingSource hands) => _hands = hands;
+
+        public void ConfigureHandTracking(HandTrackingWatcher watcher) => _handWatcher = watcher;
         public GazeController Gaze => _gaze;
 
         /// <summary>True when this build has a creation service endpoint configured.</summary>
@@ -213,10 +227,12 @@ namespace Tryscape.Unity
         void Awake()
         {
             _catalog = MovingDayPack.CreateCatalog();
-            var service = new CreationServiceClient(CreationServiceConfig.ForThisBuild());
-            _creationServiceAvailable = service.IsConfigured;
-            UseProposalProvider(new BackendSceneProposalProvider(service, _catalog.CatalogVersion), null,
-                new BackendTranscriptionProvider(service));
+            // D12: voice runs entirely on the headset. whisper.cpp transcribes; the rule-based interpreter proposes.
+            // The Python service (BackendSceneProposalProvider) remains an optional development component.
+            _creationServiceAvailable = CreationServiceConfig.ForThisBuild().IsConfigured;
+            _speech = new OnDeviceTranscriptionProvider();
+            UnityEngine.Application.lowMemory += ReleaseSpeechModel;
+            UseProposalProvider(new MovingDayLocalProposals(_ids), null, _speech);
             UseMicrophone(new UnityMicrophone());
             _store = new ProjectStore(System.IO.Path.Combine(UnityEngine.Application.persistentDataPath, "tryscape"), _catalog);
             if (_ghost != null)
@@ -251,12 +267,28 @@ namespace Tryscape.Unity
             }
             if (_recorder != null)
                 _recorder.Cancel(); // releases the microphone and drops any audio
+            UnityEngine.Application.lowMemory -= ReleaseSpeechModel;
+            _speech?.Dispose();
         }
 
         void Update()
         {
             if (_recorder != null && _recorder.State == RecorderState.Recording)
                 _recorder.Tick(Time.unscaledDeltaTime);
+            var hands = _hands ?? _handWatcher;
+            if (hands != null && _handLoss.Update(hands.AnyHandTracked, Time.unscaledDeltaTime))
+                OnHandsLost();
+        }
+
+        /// <summary>Hand tracking lost (S05.3): pause replay and drop any drag preview; nothing resumes by itself.</summary>
+        void OnHandsLost()
+        {
+            var wasPlaying = _playback != null && _playback.IsPlaying;
+            if (wasPlaying)
+                _playback.Pause();
+            CancelDrag();
+            if (wasPlaying)
+                SetStatus("Replay paused because your hands are not tracked. Press Replay to continue.");
         }
 
         void Start()
@@ -833,7 +865,10 @@ namespace Tryscape.Unity
                     return "No words were recognised. Record again, or type the description instead.";
                 case "transcription_not_configured":
                 case "service_not_configured":
-                    return "Voice needs the creation service, which is not configured in this build. Type instead or create with hands.";
+                case "asr_unavailable":
+                    return "Speech recognition is not available on this device (the speech model is missing or damaged). Create with hands instead.";
+                case "asr_failed":
+                    return "Speech recognition failed on that recording. Record again, or create with hands.";
                 case "payload_too_large":
                 case "audio_too_long":
                     return "That recording was too long to send. Record again (15 s maximum).";
@@ -848,16 +883,17 @@ namespace Tryscape.Unity
             switch (failure?.Failure)
             {
                 case ProposalFailure.Unavailable:
-                    return "The creation service is not reachable. Use 'Create with hands' for the same rehearsal.";
+                    return "Interpretation is not available. Use 'Create with hands' for the same rehearsal.";
                 case ProposalFailure.Timeout:
                     return "Interpretation took too long and was stopped. Try again, or create with hands.";
                 case ProposalFailure.Rejected:
                     return failure.DetailCode == "transcript_empty" ? "Type or pick a description first."
                         : failure.DetailCode == "transcript_too_long" ? "That description is too long (2000 characters maximum)."
                         : failure.DetailCode == "rate_limited" ? "Too many requests just now. Wait a moment, or create with hands."
-                        : "The creation service refused the request. Create with hands instead.";
+                        : failure.DetailCode == "transcript_invalid" ? "Nothing to interpret. Describe the room, or create with hands."
+                        : "That description could not be interpreted. Create with hands instead.";
                 case ProposalFailure.InvalidResponse:
-                    return "The service returned a scene this app cannot accept, so it was discarded. Create with hands instead.";
+                    return "The interpreted scene did not pass this app's checks, so it was discarded. Create with hands instead.";
                 default:
                     return "Interpretation failed. Create with hands instead.";
             }
@@ -1417,6 +1453,8 @@ namespace Tryscape.Unity
 
         // ---- Lifecycle ----
 
+        void ReleaseSpeechModel() => _speech?.Release();
+
         void OnApplicationPause(bool paused)
         {
             if (paused)
@@ -1454,6 +1492,7 @@ namespace Tryscape.Unity
             AutosaveCommitted();
             if (_recorder != null)
                 _recorder.Suspend(); // stops the microphone immediately and drops the audio (S05.3)
+            _speech?.Release(); // frees the speech model's memory; it reloads on the next voice use
             if (_creation != null && _creation.IsBusy)
             {
                 _creation.Suspend();

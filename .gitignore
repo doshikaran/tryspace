@@ -78,3 +78,10 @@ app-unity/Assets/Samples.meta
 # this Resources asset on load. Never commit it (regenerated per machine; stripped from builds by StripDevAgentCredentials).
 app-unity/Assets/Resources/DevAgentSettings.asset
 app-unity/Assets/Resources/DevAgentSettings.asset.meta
+
+# On-device speech model (148 MB, over GitHub's limit): installed by scripts/fetch_asr_model.sh, hash-verified.
+app-unity/Assets/StreamingAssets/asr/*.bin
+app-unity/Assets/StreamingAssets/asr/*.bin.meta
+app-unity/Assets/StreamingAssets/asr/*.tmp
+# Native plugin build trees (outputs are copied into Assets/Plugins by scripts/build_whisper_plugin.sh).
+native/whisper_shim/build/

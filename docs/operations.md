@@ -1,5 +1,7 @@
 # Operations: Tryscape creation service (R0)
 
+> **Decision D12 (6 November 2026):** R0 ships without a server. Voice runs on the headset (whisper.cpp plus the C# port of `deterministic_rules`), and the release APK has no endpoint. Everything below describes the **optional development service**. Its deployment checklist is kept for R1.
+
 The service turns speech and typed descriptions into validated scene proposals. **It has only ever run on a developer Mac (127.0.0.1); there is no judge-accessible deployment.** Hosting, budget and a model-assisted interpreter await the owner decision B-provider-budget. Everything else in the app (hand creation, editing, rehearsal, comparison, local projects) works without it.
 
 ## Components
