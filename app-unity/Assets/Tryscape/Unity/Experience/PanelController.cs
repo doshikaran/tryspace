@@ -46,6 +46,8 @@ namespace Tryscape.Unity.Experience
         [SerializeField] Text _compareCard;
         [SerializeField] GameObject _projectsSection;
         [SerializeField] Text _projectsCard;
+        [SerializeField] GameObject _settingsSection;
+        [SerializeField] Text _settingsCard;
         [SerializeField] List<Button> _buttons = new List<Button>();
 
         TryscapeApp _app;
@@ -55,8 +57,10 @@ namespace Tryscape.Unity.Experience
             Text sceneSummary, IEnumerable<Button> buttons, Text resultCard = null, GameObject describe = null,
             GameObject review = null, Text reviewCard = null, InputField transcriptInput = null, GameObject voice = null,
             Text voiceCard = null, GameObject compare = null, Text compareCard = null, GameObject projects = null,
-            Text projectsCard = null)
+            Text projectsCard = null, GameObject settings = null, Text settingsCard = null)
         {
+            _settingsSection = settings;
+            _settingsCard = settingsCard;
             _compareSection = compare;
             _compareCard = compareCard;
             _projectsSection = projects;
@@ -139,6 +143,16 @@ namespace Tryscape.Unity.Experience
                 case "ProjectOpen": _app.OpenSelectedProject(); break;
                 case "ProjectDelete": _app.DeleteSelectedProject(); break;
                 case "ProjectsBack": _app.ShowWelcome(); break;
+                case "Settings": _app.OpenSettings(); break;
+                case "SettingsBack": _app.CloseSettings(); break;
+                case "RotateViewLeft": _app.RotateView(-1); break;
+                case "RotateViewRight": _app.RotateView(+1); break;
+                case "ResetView": _app.ResetView(); break;
+                case "PauseAll": _app.TogglePauseAll(); break;
+                case "ReloadSaved": _app.ReloadSaved(); break;
+                case "SettingsHelp": ShowMessage(HelpText); break;
+                case "ResumeLast": _app.ResumeLast(); break;
+                case "OnboardingOk": _app.DismissOnboarding(); break;
                 case "Help": ShowMessage(HelpText); break;
                 case "WidthMinus": _app.AdjustRoomWidth(-500); break;
                 case "WidthPlus": _app.AdjustRoomWidth(500); break;
@@ -217,6 +231,16 @@ namespace Tryscape.Unity.Experience
             SetActive(_voiceSection, mode == AppMode.RecordingVoice);
             SetActive(_compareSection, mode == AppMode.Comparing);
             SetActive(_projectsSection, mode == AppMode.Projects);
+            SetActive(_settingsSection, mode == AppMode.Settings);
+            if (_settingsCard != null)
+                _settingsCard.text = mode == AppMode.Settings ? _app.AboutText : "";
+            SetVisible("Settings", mode != AppMode.Settings);
+            SetVisible("ResumeLast", _app.Resumable != null);
+            if (_app.Resumable != null)
+                SetLabel("ResumeLast", "Resume " + _app.Resumable.Title);
+            SetVisible("OnboardingOk", _app.OnboardingVisible);
+            SetInteractable("ReloadSaved", _app.Session != null);
+            SetLabel("PauseAll", _app.Playback != null && _app.Playback.IsPlaying ? "Pause replay" : "Resume replay");
             if (_compareCard != null)
                 _compareCard.text = mode == AppMode.Comparing ? _app.ComparisonText : "";
             if (_projectsCard != null)

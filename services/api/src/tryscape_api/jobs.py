@@ -127,6 +127,12 @@ async def _enqueue(
     `store_input` (audio) runs only once a new job is certain, so a replay or rejection never stores anything.
     """
     now = _now()
+    if not settings.creation_enabled:
+        raise ApiError(
+            ErrorCode.PROVIDER_UNAVAILABLE,
+            message="Creation is temporarily disabled. Hand creation still works.",
+            headers={"Retry-After": "60"},
+        )
     existing = (
         await db.execute(
             select(IdempotencyRecord, Job)
@@ -159,6 +165,13 @@ async def _enqueue(
     ).scalar_one()
     if recent >= settings.jobs_per_minute_per_session:
         raise ApiError(ErrorCode.RATE_LIMITED, headers={"Retry-After": "60"})
+    busy = (await db.execute(select(func.count()).select_from(Job).where(Job.status.in_(ACTIVE)))).scalar_one()
+    if busy >= settings.max_active_jobs:
+        raise ApiError(
+            ErrorCode.PROVIDER_UNAVAILABLE,
+            message="The creation service is at capacity.",
+            headers={"Retry-After": "10"},
+        )
     active = (
         await db.execute(
             select(func.count())

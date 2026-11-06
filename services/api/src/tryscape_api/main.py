@@ -24,6 +24,7 @@ from tryscape_api.config import Settings, get_settings
 from tryscape_api.creation.transcription import MAX_BYTES
 from tryscape_api.errors import ApiError, ErrorCode, install_error_handlers
 from tryscape_api.jobs import TRANSCRIPTION_PATH, build_router
+from tryscape_api.limits import SlidingWindowLimiter, client_ip
 from tryscape_api.request_context import RequestContextMiddleware
 from tryscape_api.sessions import issue_session
 
@@ -66,6 +67,7 @@ def create_fastapi(settings: Settings, engine: AsyncEngine | None = None) -> Fas
         openapi_url="/openapi.json" if settings.env.value in ("development", "test") else None,
     )
     install_error_handlers(app)
+    issuance = SlidingWindowLimiter(settings.sessions_per_ip_per_hour, 3600)
     app.include_router(build_router(settings))
 
     @app.get("/health/live")
@@ -85,6 +87,9 @@ def create_fastapi(settings: Settings, engine: AsyncEngine | None = None) -> Fas
 
     @app.post("/v1/anonymous-sessions", status_code=201)
     async def create_anonymous_session(request: Request, db: DbSession) -> JSONResponse:
+        allowed, retry_after = issuance.allow(client_ip(request, settings.trust_forwarded_for))
+        if not allowed:
+            raise ApiError(ErrorCode.RATE_LIMITED, headers={"Retry-After": str(min(retry_after, 3600))})
         content_type = request.headers.get("content-type", "").split(";")[0].strip().lower()
         if content_type != "application/json":
             raise ApiError(ErrorCode.UNSUPPORTED_MEDIA)

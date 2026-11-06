@@ -188,8 +188,10 @@ namespace Tryscape.Infrastructure.Persistence
                 }
                 RehearsalRun Pick(Guid? id) => id.HasValue ? runs[id.Value] : null;
                 var snapshot = new ProjectSnapshot(p.ProjectId, p.Title, p.CreatedAt, p.UpdatedAt, p.ConfirmedScene, p.CurrentScene,
-                    p.ZoomStep, Pick(p.AttemptA), Pick(p.AttemptB));
-                return StoreResult<ProjectSnapshot>.Ok(snapshot, recovered, recovered ? "recovered_from_copy" : null);
+                    p.ZoomStep, Pick(p.AttemptA), Pick(p.AttemptB), p.YawDeg);
+                var migrated = p.StoredSchemaVersion != ProjectSnapshot.SchemaVersion;
+                return StoreResult<ProjectSnapshot>.Ok(snapshot, recovered,
+                    recovered ? "recovered_from_copy" : migrated ? "migrated_from_" + p.StoredSchemaVersion.Replace('.', '_') : null);
             }
             catch (Exception e) when (e is IOException || e is UnauthorizedAccessException)
             {

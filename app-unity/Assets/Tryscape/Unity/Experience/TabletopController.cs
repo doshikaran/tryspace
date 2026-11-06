@@ -20,6 +20,20 @@ namespace Tryscape.Unity.Experience
         /// <summary>Saved presentation setting (S12): zoom step 0-4. It never affects model geometry.</summary>
         public int ZoomStep => _index;
 
+        int _yawDeg;
+
+        /// <summary>Saved presentation setting (S11): tabletop orientation in quarter turns. Never model geometry.</summary>
+        public int YawDeg => _yawDeg;
+
+        /// <summary>Turns the whole tabletop by a quarter turn about its own vertical axis (presentation only).</summary>
+        public void RotateView(int direction) => SetYaw(_yawDeg + (direction > 0 ? 90 : -90));
+
+        public void SetYaw(int yawDeg)
+        {
+            _yawDeg = ((yawDeg % 360) + 360) % 360;
+            transform.localRotation = Quaternion.Euler(0f, _yawDeg, 0f);
+        }
+
         public void SetZoomStep(int step)
         {
             _index = Mathf.Clamp(step, 0, Scales.Length - 1);

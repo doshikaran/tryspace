@@ -340,7 +340,7 @@ namespace Tryscape.Tests.EditMode.Core
             File.WriteAllBytes(runA, aBytes);
             Assert.That(Store().Load(id).Succeeded, Is.True);
 
-            var newer = File.ReadAllText(ProjectFile(id)).Replace("\"schema_version\":\"1.0.0\",\"serializer_version\"", "\"schema_version\":\"2.0.0\",\"serializer_version\"");
+            var newer = File.ReadAllText(ProjectFile(id)).Replace("\"schema_version\":\"1.1.0\",\"serializer_version\"", "\"schema_version\":\"2.0.0\",\"serializer_version\"");
             File.WriteAllText(ProjectFile(id), newer);
             Assert.That(Store().Load(id).Error, Is.EqualTo(StoreError.UnsupportedVersion));
             var save = Store().Save(Snapshot(editing, book));
@@ -424,6 +424,60 @@ namespace Tryscape.Tests.EditMode.Core
             Assert.That((small.TabletopZoomStep, large.TabletopZoomStep), Is.EqualTo((0, 4)));
             Assert.That(SceneCanonicalizer.SceneHash(small.CurrentScene), Is.EqualTo(SceneCanonicalizer.SceneHash(large.CurrentScene)));
             Assert.That(small.AttemptA.Evidence.EvidenceHash(), Is.EqualTo(large.AttemptA.Evidence.EvidenceHash()));
+        }
+
+        [Test]
+        public void LegacyProjectMigratesExplicitlyIdempotentlyAndKeepsTheOriginal()
+        {
+            // Lay out the Python-written legacy 1.0.0 project plus its runs as a device would have stored them.
+            var legacyBytes = File.ReadAllBytes(Fixtures.FixturePath("persistence/valid_project_v1_0_0_legacy.json"));
+            var legacy = SnapshotJson.ReadProject(legacyBytes);
+            Assert.That(legacy.Ok, Is.True, legacy.Problem);
+            Assert.That(legacy.Value.StoredSchemaVersion, Is.EqualTo("1.0.0"));
+            Assert.That(legacy.Value.YawDeg, Is.EqualTo(0), "migration default");
+            var id = legacy.Value.ProjectId;
+            var dir = Path.Combine(_root, "projects", id.ToString("D"));
+            Directory.CreateDirectory(Path.Combine(dir, "runs"));
+            File.WriteAllBytes(Path.Combine(dir, "project.json"), legacyBytes);
+            foreach (var f in new[] { "valid_run_attempt_a.json", "valid_run_attempt_b.json" })
+            {
+                var run = SnapshotJson.ReadRun(File.ReadAllBytes(Fixtures.FixturePath("persistence/" + f))).Value.Run;
+                File.Copy(Fixtures.FixturePath("persistence/" + f), Path.Combine(dir, "runs", run.Result.RunId.ToString("D") + ".json"));
+            }
+
+            var first = Store().Load(id);
+            Assert.That(first.Succeeded, Is.True, first.Detail);
+            Assert.That(first.Detail, Is.EqualTo("migrated_from_1_0_0"));
+            Assert.That(File.ReadAllBytes(Path.Combine(dir, "project.json")), Is.EqualTo(legacyBytes), "reading never rewrites the original");
+
+            // The migrated snapshot, written by C#, equals the Python serializer's 1.1.0 migration output.
+            var written = SnapshotJson.WriteProject(first.Value, first.Value.Runs.Select(r => r.Result.RunId));
+            Assert.That(JToken.DeepEquals(JToken.Parse(Encoding.UTF8.GetString(written)),
+                JToken.Parse(File.ReadAllText(Fixtures.FixturePath("persistence/valid_project.json")))), Is.True);
+
+            Assert.That(Store().Save(first.Value).Succeeded, Is.True);
+            Assert.That(File.ReadAllBytes(Path.Combine(dir, "project.json.bak")), Is.EqualTo(legacyBytes), "original kept as the backup");
+            var second = Store().Load(id);
+            Assert.That(second.Detail, Is.Null, "now stored as 1.1.0: no second migration");
+            Assert.That(SceneCanonicalizer.SceneHash(second.Value.CurrentScene), Is.EqualTo(SceneCanonicalizer.SceneHash(first.Value.CurrentScene)));
+            Assert.That(second.Value.AttemptA.Evidence.EvidenceHash(), Is.EqualTo(first.Value.AttemptA.Evidence.EvidenceHash()));
+            Assert.That(second.Value.AttemptA.Result.RunId, Is.EqualTo(first.Value.AttemptA.Result.RunId), "run attribution preserved");
+            Assert.That(Store().Save(second.Value).Succeeded, Is.True);
+            Assert.That(Store().Load(id).Value.TabletopYawDeg, Is.EqualTo(0), "migrating twice is idempotent");
+        }
+
+        [Test]
+        public void TabletopOrientationIsSavedAsPresentationOnly()
+        {
+            var (editing, _, book) = Journey.AttemptsF01ThenF02();
+            var s = new ProjectSnapshot(editing.Current.ProjectId, "Moving Day 6.0 x 5.0 m", "2026-11-06T08:00:00Z", "2026-11-06T09:00:00Z",
+                editing.Confirmed, editing.Current, 2, book.A.Run, book.B.Run, 270);
+            Store().Save(s);
+            var loaded = Store().Load(editing.Current.ProjectId).Value;
+            Assert.That(loaded.TabletopYawDeg, Is.EqualTo(270));
+            Assert.That(SceneCanonicalizer.SceneHash(loaded.CurrentScene), Is.EqualTo(SceneCanonicalizer.SceneHash(editing.Current)));
+            Assert.Throws<ArgumentOutOfRangeException>(() => new ProjectSnapshot(s.ProjectId, s.Title, s.CreatedAt, s.UpdatedAt,
+                s.ConfirmedScene, s.CurrentScene, 2, null, null, 45));
         }
 
         [Test]

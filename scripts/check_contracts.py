@@ -129,7 +129,8 @@ def schema_target(rel: str) -> str | None:
         return "command.schema.json#/$defs/" + ("command_result" if "_result_" in name else "command_envelope")
     if rel.startswith("persistence/"):
         name = Path(rel).name
-        for marker, definition in (("project", "project_snapshot"), ("run", "run_snapshot"), ("index", "project_index")):
+        for marker, definition in (("project_v1_0_0", "project_snapshot_v1_0_0"), ("project", "project_snapshot"),
+                                   ("run", "run_snapshot"), ("index", "project_index")):
             if marker in name:
                 return "project_snapshot.schema.json#/$defs/" + definition
         return None
@@ -474,7 +475,7 @@ def build_persistence_fixtures(catalog: dict[str, Any]) -> dict[str, dict[str, A
     f02 = load_strict(FIXTURES / "scenes" / "valid" / "f02_console_parked_south.json")
     run_a = run_snapshot(f01, "direct", RUN_A, "Attempt A", catalog)
     run_b = run_snapshot(f02, "direct", RUN_B, "Attempt B", catalog)
-    project = with_content_hash(
+    legacy = with_content_hash(
         {
             "schema_version": "1.0.0",
             "serializer_version": SERIALIZER_VERSION,
@@ -489,6 +490,22 @@ def build_persistence_fixtures(catalog: dict[str, Any]) -> dict[str, dict[str, A
             "saved_run_ids": [RUN_A, RUN_B],
         }
     )
+    # Migration 1.0.0 -> 1.1.0 (S12): adds presentation.tabletop_yaw_deg = 0; nothing else changes.
+    project = with_content_hash(
+        {
+            "schema_version": "1.1.0",
+            "serializer_version": SERIALIZER_VERSION,
+            "project_id": f01["project_id"],
+            "title": "Moving Day 6.0 x 5.0 m",
+            "created_at": PERSISTENCE_TIMESTAMP,
+            "updated_at": PERSISTENCE_TIMESTAMP,
+            "confirmed_scene": stored_scene(f01),
+            "current_scene": stored_scene(f02),
+            "presentation": {"tabletop_zoom_step": 2, "tabletop_yaw_deg": 0},
+            "attempts": {"a": RUN_A, "b": RUN_B},
+            "saved_run_ids": [RUN_A, RUN_B],
+        }
+    )
     index = with_content_hash(
         {
             "schema_version": "1.0.0",
@@ -498,10 +515,14 @@ def build_persistence_fixtures(catalog: dict[str, Any]) -> dict[str, dict[str, A
         }
     )
     newer = dict(project, schema_version="2.0.0")
+    assert {k: v for k, v in project.items() if k not in ("schema_version", "presentation", "content_hash")} == {
+        k: v for k, v in legacy.items() if k not in ("schema_version", "presentation", "content_hash")
+    }
     extra = dict(project, recording_wav="UklGRg==")
     tampered = dict(run_a, result=dict(run_a["result"], outcome="clear_in_model", first_violation=None))
     return {
         "valid_project.json": project,
+        "valid_project_v1_0_0_legacy.json": legacy,
         "valid_run_attempt_a.json": run_a,
         "valid_run_attempt_b.json": run_b,
         "valid_index.json": index,

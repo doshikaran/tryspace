@@ -182,6 +182,21 @@ namespace Tryscape.Editor
             buttons.Add(Button(welcome, "OpenSaved", "Open saved project", 0, -10, 440));
             buttons.Add(Button(welcome, "Help", "Help", 0, -80, 440));
             buttons.Add(Button(welcome, "ResumeEditing", "Resume editing", 0, -150, 440));
+            buttons.Add(Button(welcome, "ResumeLast", "Resume saved project", 0, -220, 440));
+            buttons.Add(Button(welcome, "OnboardingOk", "Got it", 0, 265, 200));
+
+            // Always available (D05): Settings / Help / Pause / Reload route, top-right of the panel in every mode.
+            buttons.Add(Button(canvasGo.transform, "Settings", "Settings", 205, 405, 130));
+            var settings = Section(canvasGo.transform, "Settings Section");
+            var settingsCard = Text(settings, "SettingsCard", "", 17, FontStyle.Normal, new Vector2(0, 150), new Vector2(520, 170));
+            settingsCard.alignment = TextAnchor.UpperLeft;
+            buttons.Add(Button(settings, "RotateViewLeft", "Turn view left", -130, 40, 250));
+            buttons.Add(Button(settings, "RotateViewRight", "Turn view right", 130, 40, 250));
+            buttons.Add(Button(settings, "ResetView", "Reset view", -130, -25, 250));
+            buttons.Add(Button(settings, "PauseAll", "Pause replay", 130, -25, 250));
+            buttons.Add(Button(settings, "ReloadSaved", "Reload last save", -130, -90, 250));
+            buttons.Add(Button(settings, "SettingsHelp", "Help", 130, -90, 250));
+            buttons.Add(Button(settings, "SettingsBack", "Close settings", 0, -155, 250));
 
             // Typed development transcript entry. Labelled as development input; this is not voice recognition.
             var describe = Section(canvasGo.transform, "Describe");
@@ -294,7 +309,7 @@ namespace Tryscape.Editor
             var controller = canvasGo.AddComponent<PanelController>();
             controller.Configure(welcome.gameObject, create.gameObject, edit.gameObject, status, draft, scene, buttons, result,
                 describe.gameObject, review.gameObject, reviewCard, input, voice.gameObject, voiceCard, compare.gameObject, compareCard,
-                projects.gameObject, projectsCard);
+                projects.gameObject, projectsCard, settings.gameObject, settingsCard);
 
             var created = QuickActionsAPI.AddRayCanvasInteraction(canvasGo).Concat(QuickActionsAPI.AddPokeCanvasInteraction(canvasGo)).ToList();
             Debug.Log($"[Tryscape] Panel canvas interaction objects created={created.Count}");

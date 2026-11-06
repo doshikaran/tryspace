@@ -49,6 +49,15 @@ class Settings(BaseSettings):
     asr_threads: int = Field(default=4, ge=1, le=8)
     asr_timeout_seconds: float = Field(default=20, ge=1, le=30)
 
+    creation_enabled: bool = Field(default=True, description="Kill switch: false rejects new creation jobs with 503.")
+    max_active_jobs: int = Field(
+        default=50, ge=1, le=10000, description="Global queued+running ceiling (no unbounded queue)."
+    )
+    sessions_per_ip_per_hour: int = Field(default=20, ge=1, le=10000)
+    trust_forwarded_for: bool = Field(
+        default=False, description="Use the first X-Forwarded-For hop as client IP; enable only behind a trusted proxy."
+    )
+
     @property
     def accepted_consent_versions(self) -> frozenset[str]:
         return frozenset(v.strip() for v in self.consent_versions.split(",") if v.strip())

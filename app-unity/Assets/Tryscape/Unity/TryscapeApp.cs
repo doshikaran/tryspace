@@ -42,6 +42,9 @@ namespace Tryscape.Unity
 
         /// <summary>Local saved projects: open or delete.</summary>
         Projects,
+
+        /// <summary>Settings, help and recovery: reachable from every mode (S11, D05).</summary>
+        Settings,
     }
 
     /// <summary>
@@ -76,6 +79,13 @@ namespace Tryscape.Unity
         IReadOnlyList<ProjectListing> _projects = Array.Empty<ProjectListing>();
         int _projectIndex;
         bool _deleteArmed;
+        AppMode _modeBeforeSettings = AppMode.Welcome;
+        long _lastSavedRevision = -1;
+        int _attemptsVersion;
+        int _savedAttemptsVersion = -1;
+        ProjectListing _resumable;
+        bool _onboardingVisible;
+        const string OnboardingKey = "tryscape.onboarding.v1.seen";
         VoiceRecorder _recorder;
         bool _audioConsentGiven;
         int _shownTenths = -1;
@@ -120,6 +130,16 @@ namespace Tryscape.Unity
         public AttemptSlot? Inspecting => _inspecting;
         public IReadOnlyList<ProjectListing> SavedProjects => _projects;
         public int SelectedProjectIndex => _projectIndex;
+
+        /// <summary>Most recently saved project on this device (offered on the welcome panel; never auto-opened).</summary>
+        public ProjectListing Resumable => _resumable;
+
+        public bool OnboardingVisible => _onboardingVisible;
+
+        public const string OnboardingText =
+            "Tryscape rehearses a sofa delivery in a model room. Results are illustrative: floor footprint only, with " +
+            "height, turning and lifting not assessed. Describe the room by voice (needs the creation service) or create " +
+            "it with hands, then move the console and rehearse.";
         public bool DeleteArmed => _deleteArmed;
 
         /// <summary>Replaces local project storage (tests use a temporary directory).</summary>
@@ -218,10 +238,120 @@ namespace Tryscape.Unity
 
         void Start()
         {
+            _attempts.Changed += () => _attemptsVersion++;
+            _onboardingVisible = !SafePrefs.GetBool(OnboardingKey);
+            RefreshResumable();
             if (_panel != null)
                 _panel.Bind(this);
-            SetStatus("Welcome. Choose how to create a rehearsal.");
+            SetStatus(_onboardingVisible ? OnboardingText
+                : _resumable != null ? $"Welcome back. Resume \"{_resumable.Title}\", or choose how to create a rehearsal."
+                : "Welcome. Choose how to create a rehearsal.");
         }
+
+        public void DismissOnboarding()
+        {
+            _onboardingVisible = false;
+            SafePrefs.SetBool(OnboardingKey, true);
+            SetStatus(_resumable != null ? $"Resume \"{_resumable.Title}\", or choose how to create a rehearsal." : "Choose how to create a rehearsal.");
+        }
+
+        void RefreshResumable()
+        {
+            var list = _store?.List();
+            _resumable = list != null && list.Succeeded && list.Value.Count > 0 ? list.Value[0] : null;
+        }
+
+        /// <summary>Opens the most recent saved project in Editing (S05.3): no playback or microphone is resumed.</summary>
+        public bool ResumeLast()
+        {
+            RefreshResumable();
+            if (_resumable == null)
+            {
+                SetStatus("There is no saved project to resume.");
+                return false;
+            }
+            return OpenProject(_resumable.ProjectId);
+        }
+
+        // ---- Settings, help and recovery (S11, D05) ----
+
+        public void OpenSettings()
+        {
+            if (Mode == AppMode.Settings)
+                return;
+            CancelDrag();
+            if (_playback != null) _playback.Pause();
+            if (_recorder != null && (_recorder.State == RecorderState.Recording || _recorder.State == RecorderState.RequestingPermission))
+                _recorder.Cancel();
+            if (_creation != null && _creation.IsBusy)
+                _creation.Cancel();
+            _modeBeforeSettings = Mode == AppMode.RecordingVoice || Mode == AppMode.DescribingTyped ? AppMode.Welcome : Mode;
+            Mode = AppMode.Settings;
+            SetStatus("Settings. Playback is paused; any recording or interpretation in progress was stopped.");
+        }
+
+        public void CloseSettings()
+        {
+            if (Mode != AppMode.Settings)
+                return;
+            Mode = _modeBeforeSettings == AppMode.Editing && _session == null ? AppMode.Welcome : _modeBeforeSettings;
+            SetStatus("Back.");
+        }
+
+        public void RotateView(int direction)
+        {
+            if (_tabletop == null)
+                return;
+            _tabletop.RotateView(direction);
+            SetStatus($"Tabletop turned to {_tabletop.YawDeg} degrees (view only; the room model is unchanged).");
+        }
+
+        public void ResetView()
+        {
+            if (_tabletop == null)
+                return;
+            _tabletop.SetYaw(0);
+            _tabletop.SetZoomStep(2);
+            _tabletop.Recenter();
+            SetStatus("View reset: default size and orientation, centred in front of you.");
+        }
+
+        public void TogglePauseAll()
+        {
+            if (_playback == null || !_playback.HasTimeline)
+            {
+                SetStatus("Nothing is playing.");
+                return;
+            }
+            if (_playback.IsPlaying)
+                _playback.Pause();
+            else if (!_playback.IsFinished)
+                _playback.Resume();
+            SetStatus(_playback.IsPlaying ? "Replay resumed." : "Replay paused.");
+        }
+
+        /// <summary>Recovery: reopens the current project's last saved state, discarding unsaved edits.</summary>
+        public bool ReloadSaved()
+        {
+            if (_session == null)
+            {
+                SetStatus("Nothing to reload.");
+                return false;
+            }
+            var id = _session.Current.ProjectId;
+            var list = _store.List();
+            if (!list.Succeeded || list.Value.All(p => p.ProjectId != id))
+            {
+                SetStatus("This rehearsal has not been saved yet, so there is nothing to reload.");
+                return false;
+            }
+            return OpenProject(id);
+        }
+
+        public string AboutText =>
+            "Tryscape R0 (competition build). Scenario: Moving Day pack 1.0.0 (provisional reference scenario). " +
+            "Interpreter: deterministic_rules (rule-based, not an AI model). Evaluator " + RouteEvaluator.Version + ". " +
+            "Projects are stored only on this device; uninstalling removes them. " + Explanation.Scope;
 
         // ---- Creation (hands-only path) ----
 
@@ -651,6 +781,7 @@ namespace Tryscape.Unity
                 return false;
             _attempts.Clear(); // a newly created room is a new project
             _projectCreatedAt = null;
+            _lastSavedRevision = -1;
             return true;
         }
 
@@ -754,6 +885,9 @@ namespace Tryscape.Unity
                     _highlight.Show(attempt.Run, _catalog);
                 else
                     _highlight.Hide();
+                var other = _attempts.Get(slot == AttemptSlot.A ? AttemptSlot.B : AttemptSlot.A);
+                if (other != null && other.Run.Scene.SceneId == attempt.Run.Scene.SceneId)
+                    _highlight.ShowGhosts(attempt.Run.Scene, other.Run.Scene, _catalog, other.Label);
             }
             SetStatus($"Inspecting {attempt.Label} (revision {attempt.Run.Evidence.SceneRevision}, read-only). Replay plays this attempt.");
         }
@@ -783,7 +917,11 @@ namespace Tryscape.Unity
                 return;
             _inspecting = null;
             if (_playback != null) _playback.Stop();
-            if (_highlight != null) _highlight.Hide();
+            if (_highlight != null)
+            {
+                _highlight.Hide();
+                _highlight.HideGhosts();
+            }
             if (_session != null)
                 _presenter.Render(_session.Current);
             Changed();
@@ -850,11 +988,14 @@ namespace Tryscape.Unity
             var now = Now();
             var snapshot = new ProjectSnapshot(_session.Current.ProjectId, ProjectTitle, _projectCreatedAt ?? now, now,
                 _session.Confirmed, _session.Current, _tabletop != null ? _tabletop.ZoomStep : 2,
-                _attempts.A?.Run, _attempts.B?.Run);
+                _attempts.A?.Run, _attempts.B?.Run, _tabletop != null ? _tabletop.YawDeg : 0);
             var result = _store.Save(snapshot);
             if (result.Succeeded)
             {
                 _projectCreatedAt = snapshot.CreatedAt;
+                _lastSavedRevision = _session.Current.Revision;
+                _savedAttemptsVersion = _attemptsVersion;
+                _resumable = result.Value;
                 SetStatus($"Saved \"{snapshot.Title}\" on this device (revision {_session.Current.Revision}, " +
                           $"{snapshot.Runs.Count()} attempt{(snapshot.Runs.Count() == 1 ? "" : "s")}).");
             }
@@ -912,8 +1053,12 @@ namespace Tryscape.Unity
         {
             if (Mode != AppMode.Projects || _projects.Count == 0)
                 return false;
-            var listing = _projects[_projectIndex];
-            var loaded = _store.Load(listing.ProjectId);
+            return OpenProject(_projects[_projectIndex].ProjectId);
+        }
+
+        bool OpenProject(Guid projectId)
+        {
+            var loaded = _store.Load(projectId);
             if (!loaded.Succeeded)
             {
                 SetStatus(StoreText(loaded.Error, loaded.Detail) + (_session != null ? " Your current scene is unchanged." : "") +
@@ -932,9 +1077,15 @@ namespace Tryscape.Unity
             _attempts.Restore(p.AttemptA, p.AttemptB);
             _projectCreatedAt = p.CreatedAt;
             if (_tabletop != null)
+            {
                 _tabletop.SetZoomStep(p.TabletopZoomStep);
+                _tabletop.SetYaw(p.TabletopYawDeg);
+            }
+            _lastSavedRevision = p.CurrentScene.Revision;
+            _savedAttemptsVersion = _attemptsVersion;
             SetStatus($"Opened \"{p.Title}\" at revision {p.CurrentScene.Revision}" +
                       (loaded.Recovered ? " from a verified backup copy (the newest file was damaged)" : "") +
+                      (loaded.Detail != null && loaded.Detail.StartsWith("migrated", StringComparison.Ordinal) ? " (upgraded from an older save format; the original is kept until you save)" : "") +
                       $". {p.Runs.Count()} saved attempt{(p.Runs.Count() == 1 ? "" : "s")}. Undo history starts fresh.");
             return true;
         }
@@ -1095,6 +1246,7 @@ namespace Tryscape.Unity
                     return _session == null ? "" : "Not rehearsed yet. Press Rehearse to check the selected route.";
                 var e = Explanation.For(run);
                 var text = new StringBuilder();
+                text.Append(run.Scene.Provenance == Provenance.UserMeasured ? "User-confirmed dimensions. " : "Example environment. ");
                 if (IsResultStale)
                     text.Append($"OUT OF DATE - result for revision {run.Evidence.SceneRevision}; scene is now revision {_session.Current.Revision}. Rehearse again.\n");
                 text.Append(e.Headline).Append(" - ").Append(run.Route?.Label ?? run.Evidence.RouteId).Append('\n');
@@ -1179,10 +1331,29 @@ namespace Tryscape.Unity
                 Suspend();
         }
 
+        void OnApplicationQuit() => AutosaveCommitted();
+
+        /// <summary>
+        /// S05.3: persist committed state before suspension where possible. Only committed scene state and retained
+        /// attempts are saved, never a drag preview, and only when something changed since the last save. A failure, such
+        /// as quota or I/O, is reported and changes nothing.
+        /// </summary>
+        public bool AutosaveCommitted()
+        {
+            if (_session == null || _store == null || Mode == AppMode.Comparing && _inspecting != null)
+                return false;
+            if (_session.Current.Revision == _lastSavedRevision && _attemptsVersion == _savedAttemptsVersion)
+                return false;
+            var result = SaveProject();
+            return result != null && result.Succeeded;
+        }
+
         /// <summary>Focus loss or pause (S05.3): discard drag previews and cancel in-flight interpretation.</summary>
         public void Suspend()
         {
             CancelDrag();
+            if (_playback != null) _playback.Pause();
+            AutosaveCommitted();
             if (_recorder != null)
                 _recorder.Suspend(); // stops the microphone immediately and drops the audio (S05.3)
             if (_creation != null && _creation.IsBusy)
@@ -1256,5 +1427,34 @@ namespace Tryscape.Unity
 
         static string RoleText(EntityRole role) =>
             role == EntityRole.Payload ? "delivery item" : role == EntityRole.Blocker ? "obstacle" : "decoration";
+    }
+
+    /// <summary>PlayerPrefs wrapper for per-device UI flags only (never project data); failures fall back to defaults.</summary>
+    static class SafePrefs
+    {
+        public static bool GetBool(string key)
+        {
+            try
+            {
+                return PlayerPrefs.GetInt(key, 0) == 1;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
+
+        public static void SetBool(string key, bool value)
+        {
+            try
+            {
+                PlayerPrefs.SetInt(key, value ? 1 : 0);
+                PlayerPrefs.Save();
+            }
+            catch (Exception)
+            {
+                // A UI preference that cannot be stored simply shows again next time.
+            }
+        }
     }
 }

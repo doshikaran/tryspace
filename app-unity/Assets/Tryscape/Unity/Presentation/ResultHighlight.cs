@@ -77,6 +77,50 @@ namespace Tryscape.Unity.Presentation
             IsShown = true;
         }
 
+        readonly System.Collections.Generic.List<Transform> _ghosts = new System.Collections.Generic.List<Transform>();
+
+        /// <summary>Number of ghost outlines currently shown (tests and diagnostics).</summary>
+        public int GhostCount => _ghosts.Count;
+
+        /// <summary>
+        /// Comparison ghosts (D07): for every entity whose pose differs between the shown snapshot and the other attempt,
+        /// a floor outline at its position in the other attempt, labelled with that attempt's name. Presentation only.
+        /// </summary>
+        public void ShowGhosts(SceneSpec shown, SceneSpec other, Catalog catalog, string otherLabel)
+        {
+            HideGhosts();
+            Build();
+            foreach (var entity in other.Entities)
+            {
+                var here = shown.FindEntity(entity.Id);
+                if (here != null && here.Pose.Equals(entity.Pose))
+                    continue;
+                if (!catalog.TryGet(entity.CatalogId, out var entry))
+                    continue;
+                var ghost = OutlineRoot($"Ghost {entity.Label}");
+                var (ex, ez) = Footprints.Extents(entry, entity.Pose.YawDeg);
+                Outline(ghost, shown.Room, entity.Pose.XMm, entity.Pose.ZMm, ex, ez);
+                var label = new GameObject("Label").AddComponent<TextMesh>();
+                label.transform.SetParent(ghost, false);
+                label.transform.localPosition = new Vector3(0, 0.05f, 0);
+                label.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+                label.text = $"{entity.Label} in {otherLabel}";
+                label.anchor = TextAnchor.MiddleCenter;
+                label.characterSize = 0.03f;
+                label.fontSize = 48;
+                label.color = new Color(0.7f, 0.85f, 1f);
+                _ghosts.Add(ghost);
+            }
+        }
+
+        public void HideGhosts()
+        {
+            foreach (var g in _ghosts)
+                if (g != null)
+                    Destroy(g.gameObject);
+            _ghosts.Clear();
+        }
+
         public void Hide()
         {
             Build();

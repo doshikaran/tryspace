@@ -42,6 +42,9 @@ namespace Tryscape.Tests.PlayMode.Acceptance
             "ObstructionCenter", "ObstructionSouth", "RouteDirect", "RouteNorth", "ConfirmCreate", "BackToWelcome",
             "Rotate", "ToggleRoute", "Undo", "Redo", "Reset", "ZoomOut", "ZoomIn", "Recenter", "Menu", "Rehearse", "PlayPause", "Details",
             "VoiceAllow", "VoiceStop", "VoiceCancel", "VoiceRetry", "VoiceTypeInstead", "VoiceHands", "VoiceBack", "EditTranscript",
+            "Settings", "SettingsBack", "RotateViewLeft", "RotateViewRight", "ResetView", "PauseAll", "ReloadSaved", "SettingsHelp",
+            "ResumeLast", "OnboardingOk", "KeepA", "KeepB", "Compare", "Save", "InspectA", "InspectB", "InspectLive", "CompareReplay",
+            "CompareBack", "ProjectPrev", "ProjectNext", "ProjectOpen", "ProjectDelete", "ProjectsBack",
         };
 
         public GameObject Root;
@@ -89,13 +92,20 @@ namespace Tryscape.Tests.PlayMode.Acceptance
             App = appGo.AddComponent<TryscapeApp>();
             App.Configure(presenter, ghost, Panel, tabletopController);
             appGo.SetActive(true);
+            // Autosave runs on Suspend(): keep it in a temporary folder, never the Editor's real data folder.
+            StoreRoot = Path.Combine(Path.GetTempPath(), "tryscape-rig-" + Guid.NewGuid().ToString("N"));
+            App.UseProjectStore(new Tryscape.Infrastructure.Persistence.ProjectStore(StoreRoot, MovingDayPack.CreateCatalog()));
             yield return null;
         }
+
+        public string StoreRoot;
 
         public void Dispose()
         {
             if (Root != null)
                 UnityEngine.Object.Destroy(Root);
+            if (StoreRoot != null && Directory.Exists(StoreRoot))
+                Directory.Delete(StoreRoot, true);
         }
 
         public static string Contracts(string relative) =>

@@ -39,6 +39,8 @@ namespace Tryscape.Tests.PlayMode.Acceptance
             "Rehearse", "PlayPause", "Details",
             "KeepA", "KeepB", "Compare", "Save", "InspectA", "InspectB", "InspectLive", "CompareReplay", "CompareBack",
             "ProjectPrev", "ProjectNext", "ProjectOpen", "ProjectDelete", "ProjectsBack",
+            "Settings", "SettingsBack", "RotateViewLeft", "RotateViewRight", "ResetView", "PauseAll", "ReloadSaved", "SettingsHelp",
+            "ResumeLast",
         };
 
         GameObject _root;
@@ -209,6 +211,107 @@ namespace Tryscape.Tests.PlayMode.Acceptance
             _panel.Press("ProjectDelete");
             Assert.AreEqual(0, _app.SavedProjects.Count);
             Assert.IsFalse(System.IO.Directory.Exists(System.IO.Path.Combine(_storeRoot, "projects", projectId.ToString("D"))));
+        }
+
+        [UnityTest]
+        public IEnumerator RoutesShowDirectionMarkersAndMoversFlankThePayloadDuringReplay()
+        {
+            yield return CreateExample();
+            var chevrons = _app.Presenter.RoomRoot.GetComponentsInChildren<Transform>().Count(t => t.name.StartsWith("Direction "));
+            Assert.That(chevrons, Is.GreaterThanOrEqualTo(8), "chevrons along both routes (D07)");
+            _panel.Press("Rehearse");
+            Assert.IsTrue(_app.Playback.MoversVisible, "two schematic movers accompany the replay");
+            var deadline = Time.realtimeSinceStartup + 5f; // 275 mm at 250 mm/s is 1.1 s of logical time
+            while (!_app.Playback.IsFinished && Time.realtimeSinceStartup < deadline)
+                yield return null;
+            Assert.IsTrue(_app.Playback.IsFinished);
+            // Blocked at x = 1275 mm (D06 F01) while travelling east: movers flank the sofa on the z axis, so neither stands
+            // inside the console footprint (x 2200-2800 mm) ahead of it.
+            var sofa = _app.Presenter.Views.Values.Single(v => !v.Editable).transform.localPosition;
+            for (var m = 0; m < 2; m++)
+            {
+                var mover = _app.Playback.MoverLocalPosition(m);
+                Assert.That(Mathf.Abs(mover.x - sofa.x), Is.LessThan(1e-4f));
+                Assert.That(Mathf.Abs(Mathf.Abs(mover.z - sofa.z) - 0.55f), Is.LessThan(1e-3f));
+            }
+            _panel.Press("Rotate"); // any edit stops the replay and removes the movers
+            Assert.IsFalse(_app.Playback.MoversVisible);
+        }
+
+        [UnityTest]
+        public IEnumerator ComparisonShowsGhostsOfTheOtherAttemptsPositions()
+        {
+            yield return CreateExample();
+            _panel.Press("Rehearse");
+            _panel.Press("KeepA");
+            yield return DragConsole(RightHand, World(2500, 2500), World(2512, 790));
+            _panel.Press("Rehearse");
+            _panel.Press("KeepB");
+            _panel.Press("Compare");
+            _panel.Press("InspectA");
+            Assert.AreEqual(1, _app.Highlight.GhostCount, "the console's Attempt B position is ghosted");
+            _panel.Press("InspectLive");
+            Assert.AreEqual(0, _app.Highlight.GhostCount);
+        }
+
+        [UnityTest]
+        public IEnumerator SettingsIsReachableAndViewOrientationIsPresentationOnly()
+        {
+            yield return CreateExample();
+            var hash = Tryscape.Core.Canonical.SceneCanonicalizer.SceneHash(_app.Session.Current);
+            _panel.Press("Rehearse");
+            var evidence = _app.LatestRun.Evidence.EvidenceHash();
+            _panel.Press("Settings");
+            Assert.AreEqual(AppMode.Settings, _app.Mode);
+            Assert.IsFalse(_app.Playback.IsPlaying, "opening settings pauses replay");
+            StringAssert.Contains("deterministic_rules", _app.AboutText);
+            _panel.Press("RotateViewRight");
+            _panel.Press("RotateViewRight");
+            Assert.AreEqual(180, _tabletop.YawDeg);
+            Assert.That(Mathf.Abs(Mathf.DeltaAngle(_tabletop.transform.localEulerAngles.y, 180f)), Is.LessThan(0.01f));
+            _panel.Press("PauseAll");
+            Assert.IsTrue(_app.Playback.IsPlaying, "resume from settings");
+            _panel.Press("PauseAll");
+            _panel.Press("SettingsBack");
+            Assert.AreEqual(AppMode.Editing, _app.Mode);
+            Assert.AreEqual(hash, Tryscape.Core.Canonical.SceneCanonicalizer.SceneHash(_app.Session.Current), "view turn never changes the model");
+            _panel.Press("Rehearse");
+            Assert.AreEqual(evidence, _app.LatestRun.Evidence.EvidenceHash());
+
+            _panel.Press("Save");
+            _panel.Press("Rotate"); // unsaved edit
+            Assert.AreEqual(1, _app.Session.Current.Revision);
+            _panel.Press("Settings");
+            _panel.Press("ReloadSaved"); // recovery: back to the last save
+            Assert.AreEqual(0, _app.Session.Current.Revision, _app.Status);
+            Assert.AreEqual(180, _tabletop.YawDeg, "saved orientation restored");
+            _panel.Press("ResetView");
+            Assert.AreEqual(0, _tabletop.YawDeg);
+            Assert.AreEqual(2, _tabletop.ZoomStep);
+        }
+
+        [UnityTest]
+        public IEnumerator SuspendAutosavesCommittedStateAndRestartOffersResume()
+        {
+            yield return CreateExample();
+            yield return DragConsole(RightHand, World(2500, 2500), World(2512, 790));
+            Assert.AreEqual(1, _app.Session.Current.Revision);
+            _app.Suspend(); // what OnApplicationPause(true) / focus loss call
+            StringAssert.Contains("Saved", _app.Status);
+            var id = _app.Session.Current.ProjectId;
+            Assert.IsFalse(_app.AutosaveCommitted(), "nothing changed since the autosave: no rewrite");
+
+            UnityEngine.Object.Destroy(_root);
+            yield return null;
+            yield return BuildApp();
+            Assert.IsNotNull(_app.Resumable, "restart offers the last saved project");
+            Assert.AreEqual(AppMode.Welcome, _app.Mode, "never resumes automatically");
+            Assert.IsFalse(_app.Playback.IsPlaying);
+            _panel.Press("ResumeLast");
+            Assert.AreEqual(AppMode.Editing, _app.Mode, _app.Status);
+            Assert.AreEqual(id, _app.Session.Current.ProjectId);
+            Assert.AreEqual(new ModelPose(2500, 800, 0), ConsolePose);
+            Assert.IsFalse(_app.Playback.IsPlaying, "no movement resumes on reopen");
         }
 
         [UnityTest]

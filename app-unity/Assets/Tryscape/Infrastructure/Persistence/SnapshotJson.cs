@@ -40,6 +40,10 @@ namespace Tryscape.Infrastructure.Persistence
         public SceneSpec ConfirmedScene;
         public SceneSpec CurrentScene;
         public int ZoomStep;
+        public int YawDeg;
+
+        /// <summary>Schema version the file had on disk ("1.0.0" means it was migrated in memory).</summary>
+        public string StoredSchemaVersion;
         public Guid? AttemptA;
         public Guid? AttemptB;
         public IReadOnlyList<Guid> SavedRunIds;
@@ -110,7 +114,9 @@ namespace Tryscape.Infrastructure.Persistence
                 .Set("updated_at", p.UpdatedAt)
                 .Set("confirmed_scene", SceneCanonicalizer.ToCanonical(p.ConfirmedScene, true))
                 .Set("current_scene", SceneCanonicalizer.ToCanonical(p.CurrentScene, true))
-                .Set("presentation", CanonicalJson.Object().Set("tabletop_zoom_step", p.TabletopZoomStep))
+                .Set("presentation", CanonicalJson.Object()
+                    .Set("tabletop_zoom_step", p.TabletopZoomStep)
+                    .Set("tabletop_yaw_deg", p.TabletopYawDeg))
                 .Set("attempts", CanonicalJson.Object()
                     .Set("a", p.AttemptA == null ? null : SceneCanonicalizer.Uuid(p.AttemptA.Result.RunId))
                     .Set("b", p.AttemptB == null ? null : SceneCanonicalizer.Uuid(p.AttemptB.Result.RunId)))
@@ -212,12 +218,23 @@ namespace Tryscape.Infrastructure.Persistence
             return true;
         }
 
+        /// <summary>
+        /// Reads a project snapshot. Version 1.1.0 is read directly. Version 1.0.0 is migrated by an explicit function: its
+        /// own content hash is verified first, then <c>tabletop_yaw_deg = 0</c> is added in memory. The file on disk is not
+        /// rewritten until the next verified save, which keeps the original as the backup. Any other 1.x version is
+        /// rejected as malformed; 2.x and later is reported as unsupported and is read-protected.
+        /// </summary>
         public static SnapshotRead<StoredProject> ReadProject(byte[] bytes)
         {
             if (!Parse(bytes, out var o, out var problem))
                 return SnapshotRead<StoredProject>.Bad(problem);
-            if (!Major(o, out var unsupported))
+            var version = o["schema_version"]?.Type == JTokenType.String ? (string)o["schema_version"] : null;
+            if (version != ProjectSnapshot.SchemaVersion && version != ProjectSnapshot.LegacySchemaVersion)
+            {
+                var unsupported = version != null && !version.StartsWith("1.", StringComparison.Ordinal);
                 return SnapshotRead<StoredProject>.Bad(unsupported ? "unsupported_version" : "bad_schema_version", unsupported);
+            }
+            var legacy = version == ProjectSnapshot.LegacySchemaVersion;
             var r = new ShapeReader();
             var p = r.Object(o, "", ProjectKeys);
             if (p == null)
@@ -232,8 +249,12 @@ namespace Tryscape.Infrastructure.Persistence
                 CurrentScene = SceneSpecJsonReader.ReadScene(p["current_scene"], "current_scene", r),
             };
             r.Semver(p, "serializer_version", "");
-            var pres = r.Object(p["presentation"], "presentation", "tabletop_zoom_step");
+            var pres = legacy
+                ? r.Object(p["presentation"], "presentation", "tabletop_zoom_step")
+                : r.Object(p["presentation"], "presentation", "tabletop_zoom_step", "tabletop_yaw_deg");
             stored.ZoomStep = pres == null ? 0 : r.Int(pres, "tabletop_zoom_step", "presentation", 0, ProjectSnapshot.MaxZoomStep);
+            stored.YawDeg = pres == null || legacy ? 0 : r.IntEnum(pres, "tabletop_yaw_deg", "presentation", 0, 90, 180, 270);
+            stored.StoredSchemaVersion = version;
             var att = r.Object(p["attempts"], "attempts", "a", "b");
             stored.AttemptA = att == null ? null : NullableUuid(att, "a", r);
             stored.AttemptB = att == null ? null : NullableUuid(att, "b", r);
@@ -254,9 +275,12 @@ namespace Tryscape.Infrastructure.Persistence
 
             // Integrity: re-serialise what was read; it must reproduce the stored hash exactly.
             var rebuilt = new ProjectSnapshot(stored.ProjectId, stored.Title, stored.CreatedAt, stored.UpdatedAt,
-                stored.ConfirmedScene, stored.CurrentScene, stored.ZoomStep, null, null);
+                stored.ConfirmedScene, stored.CurrentScene, stored.ZoomStep, null, null, stored.YawDeg);
+            var presentation = CanonicalJson.Object().Set("tabletop_zoom_step", rebuilt.TabletopZoomStep);
+            if (!legacy)
+                presentation.Set("tabletop_yaw_deg", rebuilt.TabletopYawDeg);
             var body = CanonicalJson.Object()
-                .Set("schema_version", ProjectSnapshot.SchemaVersion)
+                .Set("schema_version", version)
                 .Set("serializer_version", (string)p["serializer_version"])
                 .Set("project_id", SceneCanonicalizer.Uuid(rebuilt.ProjectId))
                 .Set("title", rebuilt.Title)
@@ -264,7 +288,7 @@ namespace Tryscape.Infrastructure.Persistence
                 .Set("updated_at", rebuilt.UpdatedAt)
                 .Set("confirmed_scene", SceneCanonicalizer.ToCanonical(rebuilt.ConfirmedScene, true))
                 .Set("current_scene", SceneCanonicalizer.ToCanonical(rebuilt.CurrentScene, true))
-                .Set("presentation", CanonicalJson.Object().Set("tabletop_zoom_step", rebuilt.TabletopZoomStep))
+                .Set("presentation", presentation)
                 .Set("attempts", CanonicalJson.Object()
                     .Set("a", stored.AttemptA.HasValue ? SceneCanonicalizer.Uuid(stored.AttemptA.Value) : null)
                     .Set("b", stored.AttemptB.HasValue ? SceneCanonicalizer.Uuid(stored.AttemptB.Value) : null))

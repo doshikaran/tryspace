@@ -12,11 +12,13 @@ namespace Tryscape.Application.Persistence
     /// </summary>
     public sealed class ProjectSnapshot
     {
-        public const string SchemaVersion = "1.0.0";
+        /// <summary>Current project schema. 1.0.0 files are migrated on read (they gain tabletop_yaw_deg = 0).</summary>
+        public const string SchemaVersion = "1.1.0";
+        public const string LegacySchemaVersion = "1.0.0";
         public const int MaxZoomStep = 4;
 
         public ProjectSnapshot(Guid projectId, string title, string createdAt, string updatedAt, SceneSpec confirmedScene,
-            SceneSpec currentScene, int tabletopZoomStep, RehearsalRun attemptA, RehearsalRun attemptB)
+            SceneSpec currentScene, int tabletopZoomStep, RehearsalRun attemptA, RehearsalRun attemptB, int tabletopYawDeg = 0)
         {
             ProjectId = projectId;
             Title = title ?? throw new ArgumentNullException(nameof(title));
@@ -27,6 +29,9 @@ namespace Tryscape.Application.Persistence
             if (tabletopZoomStep < 0 || tabletopZoomStep > MaxZoomStep)
                 throw new ArgumentOutOfRangeException(nameof(tabletopZoomStep));
             TabletopZoomStep = tabletopZoomStep;
+            if (tabletopYawDeg != 0 && tabletopYawDeg != 90 && tabletopYawDeg != 180 && tabletopYawDeg != 270)
+                throw new ArgumentOutOfRangeException(nameof(tabletopYawDeg));
+            TabletopYawDeg = tabletopYawDeg;
             AttemptA = attemptA;
             AttemptB = attemptB;
         }
@@ -38,6 +43,9 @@ namespace Tryscape.Application.Persistence
         public SceneSpec ConfirmedScene { get; }
         public SceneSpec CurrentScene { get; }
         public int TabletopZoomStep { get; }
+
+        /// <summary>Presentation-only tabletop orientation (S11): 0, 90, 180 or 270 degrees. Never model geometry.</summary>
+        public int TabletopYawDeg { get; }
         public RehearsalRun AttemptA { get; }
         public RehearsalRun AttemptB { get; }
 

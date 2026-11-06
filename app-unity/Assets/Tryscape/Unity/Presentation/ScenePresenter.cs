@@ -28,6 +28,8 @@ namespace Tryscape.Unity.Presentation
 
         readonly Dictionary<Guid, EntityView> _views = new Dictionary<Guid, EntityView>();
         readonly Dictionary<string, List<Renderer>> _routes = new Dictionary<string, List<Renderer>>();
+        readonly Dictionary<string, List<Renderer>> _arrows = new Dictionary<string, List<Renderer>>();
+        const float ArrowSpacing = 0.5f;
         Transform _roomRoot;
         RoomSpec _room;
         TextMesh _dimensions;
@@ -57,6 +59,7 @@ namespace Tryscape.Unity.Presentation
             staging.SetParent(transform, false);
             var views = new Dictionary<Guid, EntityView>();
             var routes = new Dictionary<string, List<Renderer>>();
+            var arrows = new Dictionary<string, List<Renderer>>();
             TextMesh dimensions;
             try
             {
@@ -76,7 +79,11 @@ namespace Tryscape.Unity.Presentation
                     views.Add(entity.Id, view);
                 }
                 foreach (var route in scene.Routes)
-                    routes.Add(route.Id, BuildRoute(staging, scene.Room, route));
+                {
+                    var arrowList = new List<Renderer>();
+                    routes.Add(route.Id, BuildRoute(staging, scene.Room, route, arrowList));
+                    arrows.Add(route.Id, arrowList);
+                }
             }
             catch
             {
@@ -97,6 +104,9 @@ namespace Tryscape.Unity.Presentation
             _routes.Clear();
             foreach (var pair in routes)
                 _routes.Add(pair.Key, pair.Value);
+            _arrows.Clear();
+            foreach (var pair in arrows)
+                _arrows.Add(pair.Key, pair.Value);
             Render(scene);
         }
 
@@ -118,9 +128,13 @@ namespace Tryscape.Unity.Presentation
                     var width = active ? ActiveRouteWidth : InactiveRouteWidth;
                     segment.transform.localScale = s.x > s.z ? new Vector3(s.x, s.y, width) : new Vector3(width, s.y, s.z);
                 }
+                if (_arrows.TryGetValue(pair.Key, out var arrowRenderers))
+                    foreach (var arrow in arrowRenderers)
+                        arrow.sharedMaterial = active ? _routeMaterial : _inactiveRouteMaterial;
             }
             if (_dimensions != null)
-                _dimensions.text = $"{scene.Room.WidthMm / 1000.0:0.0#} m x {scene.Room.DepthMm / 1000.0:0.0#} m - Example environment";
+                _dimensions.text = $"{scene.Room.WidthMm / 1000.0:0.0#} m x {scene.Room.DepthMm / 1000.0:0.0#} m - " +
+                                   (scene.Provenance == Provenance.UserMeasured ? "User-confirmed dimensions" : "Example environment");
         }
 
         TextMesh BuildRoom(Transform parent, RoomSpec room)
@@ -146,7 +160,8 @@ namespace Tryscape.Unity.Presentation
             return text;
         }
 
-        List<Renderer> BuildRoute(Transform parent, RoomSpec room, RouteSpec route)
+        /// <summary>Route floor line plus chevron direction markers (D07) every <see cref="ArrowSpacing"/> m.</summary>
+        List<Renderer> BuildRoute(Transform parent, RoomSpec room, RouteSpec route, List<Renderer> arrows)
         {
             var root = new GameObject($"Route {route.Id}").transform;
             root.SetParent(parent, false);
@@ -161,6 +176,24 @@ namespace Tryscape.Unity.Presentation
                     alongX ? new Vector3(length, 0.006f, ActiveRouteWidth) : new Vector3(ActiveRouteWidth, 0.006f, length),
                     _routeMaterial);
                 segments.Add(segment.GetComponent<Renderer>());
+
+                // Chevrons pointing in the travel direction (decoration only: no colliders, not part of any result).
+                var yaw = Mathf.Atan2(bx - ax, bz - az) * Mathf.Rad2Deg;
+                var count = Mathf.Max(1, Mathf.FloorToInt(length / ArrowSpacing));
+                for (var k = 0; k < count; k++)
+                {
+                    var t = (k + 0.5f) / count;
+                    var chevron = new GameObject($"Direction {i - 1}.{k}").transform;
+                    chevron.SetParent(root, false);
+                    chevron.localPosition = new Vector3(ax + (bx - ax) * t, 0.009f, az + (bz - az) * t);
+                    chevron.localRotation = Quaternion.Euler(0, yaw, 0);
+                    foreach (var side in new[] { -1f, 1f })
+                    {
+                        var bar = Cube("Chevron", chevron, new Vector3(side * 0.035f, 0, -0.03f), new Vector3(0.016f, 0.005f, 0.09f), _routeMaterial);
+                        bar.transform.localRotation = Quaternion.Euler(0, side * -40f, 0);
+                        arrows.Add(bar.GetComponent<Renderer>());
+                    }
+                }
             }
             return segments;
         }

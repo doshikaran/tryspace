@@ -363,3 +363,29 @@ async def test_expired_jobs_and_transcripts_are_purged(
     assert await w.purge_expired() == 1
     response = await client.get(f"/v1/jobs/{job_id}", headers={"Authorization": f"Bearer {token}"})
     assert response.status_code == 404
+
+
+async def test_kill_switch_and_global_capacity_reject_new_jobs(migrated_database: str, engine: AsyncEngine) -> None:
+    from httpx import ASGITransport
+
+    from tests.conftest import _lifespan
+    from tryscape_api.config import Environment
+    from tryscape_api.main import create_app
+
+    async def run(settings: Settings) -> list[int]:
+        app = create_app(settings, engine)
+        codes = []
+        async with AsyncClient(transport=ASGITransport(app=app), base_url="http://testserver") as http, _lifespan(app):
+            for _ in range(2):
+                token = await new_session(http)
+                codes.append(
+                    (await http.post("/v1/scene-proposal-jobs", json=body(), headers=headers(token))).status_code
+                )
+        return codes
+
+    off = Settings(env=Environment.TEST, database_url=migrated_database, creation_enabled=False)  # type: ignore[arg-type]
+    assert await run(off) == [503, 503]
+    async with engine.begin() as conn:
+        assert (await conn.execute(text("SELECT count(*) FROM jobs"))).scalar_one() == 0
+    full = Settings(env=Environment.TEST, database_url=migrated_database, max_active_jobs=1)  # type: ignore[arg-type]
+    assert await run(full) == [202, 503]  # second session is refused: one active job is the global ceiling

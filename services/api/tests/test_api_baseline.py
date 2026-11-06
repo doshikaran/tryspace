@@ -167,3 +167,26 @@ def test_docs_disabled_outside_development(migrated_database: str) -> None:
     judge = create_fastapi(Settings(env=Environment.JUDGE, database_url=migrated_database))  # type: ignore[arg-type]
     assert judge.openapi_url is None
     assert judge.docs_url is None
+
+
+async def test_session_issuance_is_limited_per_ip(migrated_database: str, engine: object) -> None:
+    from tests.conftest import _lifespan
+    from tryscape_api.limits import SlidingWindowLimiter
+
+    settings = Settings(env=Environment.TEST, database_url=migrated_database, sessions_per_ip_per_hour=2)  # type: ignore[arg-type]
+    app = create_app(settings, engine)  # type: ignore[arg-type]
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://testserver") as http, _lifespan(app):
+        assert (await http.post("/v1/anonymous-sessions", json={})).status_code == 201
+        assert (await http.post("/v1/anonymous-sessions", json={})).status_code == 201
+        third = await http.post("/v1/anonymous-sessions", json={})
+        assert third.status_code == 429
+        assert 1 <= int(third.headers["retry-after"]) <= 3600
+    clock = [0.0]
+    limiter = SlidingWindowLimiter(1, 10, clock=lambda: clock[0], max_keys=2)
+    assert limiter.allow("a") == (True, 0)
+    assert limiter.allow("a")[0] is False
+    clock[0] = 11
+    assert limiter.allow("a")[0] is True  # window slides
+    limiter.allow("b")
+    limiter.allow("c")  # bounded keys: evicts the oldest
+    assert len(limiter._hits) == 2

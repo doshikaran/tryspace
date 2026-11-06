@@ -210,7 +210,8 @@
     "measurement_sources": []
   },
   "presentation": {
-    "tabletop_zoom_step": 2
+    "tabletop_zoom_step": 2,
+    "tabletop_yaw_deg": 0
   },
   "attempts": {
     "a": "60000000-0000-4000-8000-00000000000a",
@@ -220,5 +221,5 @@
     "60000000-0000-4000-8000-00000000000a",
     "60000000-0000-4000-8000-00000000000b"
   ],
-  "content_hash": "1a50c29579b080a32a20fb629ce9dbdd1b209c35aa8c6b4dcde2eca7a942f0f8"
+  "content_hash": "35ac3d76a8e2408e065016a52b51f92d7215fecaec18d28ff5520e957eeef24b"
 }
