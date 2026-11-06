@@ -14,6 +14,7 @@ using Tryscape.Core.Model;
 using Tryscape.Infrastructure.Persistence;
 using Tryscape.Unity.Creation;
 using Tryscape.Unity.Experience;
+using Tryscape.Unity.MixedReality;
 using Tryscape.Unity.Presentation;
 using UnityEngine;
 
@@ -64,7 +65,11 @@ namespace Tryscape.Unity
         [SerializeField] PanelController _panel;
         [SerializeField] TabletopController _tabletop;
         [SerializeField] ResultHighlight _highlight;
+        [SerializeField] MixedRealityController _mixedReality;
+        [SerializeField] GazeController _gaze;
 
+        const string PassthroughOffKey = "tryscape.passthrough.off";
+        bool _creationServiceAvailable;
         readonly IIdGenerator _ids = new RandomIdGenerator();
         readonly IUtcClock _clock = new SystemUtcClock();
         RehearsalSession _rehearsal;
@@ -182,6 +187,19 @@ namespace Tryscape.Unity
             _recorder.Completed += OnRecordingCompleted;
         }
 
+        /// <summary>Passthrough, real-surface placement and gaze (S11). Optional: absent in rigs built by tests.</summary>
+        public void ConfigureMixedReality(MixedRealityController mixedReality, GazeController gaze)
+        {
+            _mixedReality = mixedReality;
+            _gaze = gaze;
+        }
+
+        public MixedRealityController MixedReality => _mixedReality;
+        public GazeController Gaze => _gaze;
+
+        /// <summary>True when this build has a creation service endpoint configured.</summary>
+        public bool CreationServiceAvailable => _creationServiceAvailable;
+
         public void Configure(ScenePresenter presenter, PlacementGhost ghost, PanelController panel, TabletopController tabletop,
             ResultHighlight highlight = null)
         {
@@ -196,6 +214,7 @@ namespace Tryscape.Unity
         {
             _catalog = MovingDayPack.CreateCatalog();
             var service = new CreationServiceClient(CreationServiceConfig.ForThisBuild());
+            _creationServiceAvailable = service.IsConfigured;
             UseProposalProvider(new BackendSceneProposalProvider(service, _catalog.CatalogVersion), null,
                 new BackendTranscriptionProvider(service));
             UseMicrophone(new UnityMicrophone());
@@ -221,6 +240,10 @@ namespace Tryscape.Unity
         {
             if (_playback != null)
                 _playback.Finished -= OnPlaybackFinished;
+            if (_mixedReality != null)
+                _mixedReality.Changed -= Changed;
+            if (_gaze != null)
+                _gaze.Changed -= Changed;
             if (_creation != null)
             {
                 _creation.Changed -= OnCreationChanged;
@@ -241,6 +264,14 @@ namespace Tryscape.Unity
             _attempts.Changed += () => _attemptsVersion++;
             _onboardingVisible = !SafePrefs.GetBool(OnboardingKey);
             RefreshResumable();
+            if (_mixedReality != null)
+            {
+                _mixedReality.Changed += Changed;
+                _mixedReality.SetPassthrough(!SafePrefs.GetBool(PassthroughOffKey));
+                _mixedReality.PlaceOnSurface(); // asks for spatial data; any failure keeps the floating placement
+            }
+            if (_gaze != null)
+                _gaze.Changed += Changed;
             if (_panel != null)
                 _panel.Bind(this);
             SetStatus(_onboardingVisible ? OnboardingText
@@ -312,9 +343,75 @@ namespace Tryscape.Unity
                 return;
             _tabletop.SetYaw(0);
             _tabletop.SetZoomStep(2);
+            if (_mixedReality != null && _mixedReality.CurrentSurface != null)
+            {
+                _mixedReality.ReapplySurface();
+                SetStatus("View reset: default size and orientation, back on the same surface.");
+                return;
+            }
             _tabletop.Recenter();
             SetStatus("View reset: default size and orientation, centred in front of you.");
         }
+
+        // ---- Mixed reality and gaze (S11, AC33-AC35); presentation only ----
+
+        public void TogglePassthrough()
+        {
+            if (_mixedReality == null)
+                return;
+            var on = !_mixedReality.PassthroughOn;
+            _mixedReality.SetPassthrough(on);
+            SafePrefs.SetBool(PassthroughOffKey, !on);
+            SetStatus(on ? "Passthrough on: your room is visible around the rehearsal."
+                : "Passthrough off: neutral virtual room. The rehearsal and its results are unchanged.");
+        }
+
+        /// <summary>Moves to the next table or desk found, or looks for surfaces if none has been found yet.</summary>
+        public void PlaceOnSurface()
+        {
+            if (_mixedReality == null)
+                return;
+            if (_mixedReality.SurfaceCount > 1 || _mixedReality.SurfaceCount == 1 && _mixedReality.CurrentSurface == null)
+            {
+                _mixedReality.NextSurface();
+                SetStatus("Moved to another surface. Placement is view only; the room model is unchanged.");
+                return;
+            }
+            _mixedReality.PlaceOnSurface();
+            SetStatus("Looking for a table or desk near you...");
+        }
+
+        /// <summary>Opens the headset's Space Setup if it has no room yet, then places on a surface.</summary>
+        public void SetUpSpace()
+        {
+            if (_mixedReality == null)
+                return;
+            _mixedReality.PlaceOnSurface(allowSpaceSetup: true);
+            SetStatus("Opening space setup if this headset has no room yet...");
+        }
+
+        public void PlaceFloating()
+        {
+            if (_mixedReality == null)
+            {
+                _tabletop?.Recenter();
+                return;
+            }
+            _mixedReality.PlaceManually();
+            SetStatus("The rehearsal floats in front of you.");
+        }
+
+        public void ToggleGaze()
+        {
+            if (_gaze == null)
+                return;
+            _gaze.Toggle();
+            SetStatus(_gaze.StatusText);
+        }
+
+        public string SettingsText =>
+            (_mixedReality != null ? _mixedReality.StatusText + "\n" : "") +
+            (_gaze != null ? _gaze.StatusText + "\n" : "") + AboutText;
 
         public void TogglePauseAll()
         {
@@ -350,7 +447,8 @@ namespace Tryscape.Unity
 
         public string AboutText =>
             "Tryscape R0 (competition build). Scenario: Moving Day pack 1.0.0 (provisional reference scenario). " +
-            "Interpreter: deterministic_rules (rule-based, not an AI model). Evaluator " + RouteEvaluator.Version + ". " +
+            "Interpreter: deterministic_rules (rule-based, not an AI model). " +
+            "Evaluator " + RouteEvaluator.Version + ". " +
             "Projects are stored only on this device; uninstalling removes them. " + Explanation.Scope;
 
         // ---- Creation (hands-only path) ----

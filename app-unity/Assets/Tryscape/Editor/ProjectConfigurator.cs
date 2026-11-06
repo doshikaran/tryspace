@@ -123,6 +123,11 @@ namespace Tryscape.Editor
             Check(PlayerSettings.insecureHttpOption == InsecureHttpOption.DevelopmentOnly, "insecure HTTP development builds only");
             Check(OVRProjectConfig.CachedProjectConfig.handTrackingSupport ==
                   OVRProjectConfig.HandTrackingSupport.ControllersAndHands, "hand tracking enabled");
+            var meta = OVRProjectConfig.CachedProjectConfig;
+            Check(meta.insightPassthroughSupport == OVRProjectConfig.FeatureSupport.Supported, "passthrough supported");
+            Check(meta.sceneSupport == OVRProjectConfig.FeatureSupport.Supported, "scene support");
+            Check(meta.anchorSupport == OVRProjectConfig.AnchorSupport.Enabled, "anchor support");
+            Check(meta.eyeTrackingSupport == OVRProjectConfig.FeatureSupport.Supported, "eye tracking supported");
             foreach (var group in new[] { BuildTargetGroup.Android, BuildTargetGroup.Standalone })
                 Check(XRPackageMetadataStore.IsLoaderAssigned(OpenXRLoader, group), $"OpenXR loader for {group}");
             foreach (var (group, ids) in new[]
@@ -208,6 +213,12 @@ namespace Tryscape.Editor
             var metaConfig = OVRProjectConfig.CachedProjectConfig;
             metaConfig.handTrackingSupport = OVRProjectConfig.HandTrackingSupport.ControllersAndHands;
             metaConfig.handTrackingFrequency = OVRProjectConfig.HandTrackingFrequency.HIGH;
+            // Mixed reality (S11, D12): passthrough by default, MRUK scene data and anchors, optional eye-tracked gaze.
+            // "Supported", not "Required": a headset or user without these features still runs the hand journey.
+            metaConfig.insightPassthroughSupport = OVRProjectConfig.FeatureSupport.Supported;
+            metaConfig.sceneSupport = OVRProjectConfig.FeatureSupport.Supported;
+            metaConfig.anchorSupport = OVRProjectConfig.AnchorSupport.Enabled;
+            metaConfig.eyeTrackingSupport = OVRProjectConfig.FeatureSupport.Supported;
             OVRProjectConfig.CommitProjectConfig(metaConfig);
 
             AssignOpenXR(BuildTargetGroup.Android);

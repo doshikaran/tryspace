@@ -242,6 +242,23 @@ Required folder targets: `app-unity/Assets/Tryscape/{Core,Application,Unity,XR,I
 
 **Summary:** `phase-4-summary.md`. Cloud accounts/sync remain deferred unless explicitly brought into scope; their absence does not justify stubbing successful endpoints.
 
+## 10a. Phase 4b: Passthrough mixed reality and gaze (revision 1.2)
+
+**Prerequisite:** Phase 4 compare/save integrated.
+
+**Integrated outcome:**
+- The app starts in passthrough, and Settings can switch to a virtual background.
+- The tabletop snaps onto a detected real table or desk through MR Utility Kit. Without scene data or permission, the user gets manual placement with an explanation.
+- On a headset with eye tracking, look-and-pinch selects panel buttons and the console. Without eye tracking, hand rays work unchanged.
+- No placement or background change alters the scene hash or results.
+
+**Gates:**
+- Surface-ranking EditMode tests pass.
+- PlayMode tests pass for the passthrough toggle, manual fallback and placement-is-presentation-only.
+- Scene-builder checks confirm the gaze components are present and the ray fallback is wired.
+- The Android build passes, with manifest checks for the passthrough, scene and eye-tracking features and permissions.
+- AC33–AC35 on a Quest. These are device gates and stay open until run on hardware.
+
 ## 11. Phase 5 — Device quality and release candidate
 
 **Prerequisite:** required R0 functionality implemented; known defects tracked.
@@ -250,12 +267,12 @@ Required folder targets: `app-unity/Assets/Tryscape/{Core,Application,Unity,XR,I
 | --- | --- |
 | A | Profile Quest rendering/build, tracking/input lifecycle and crash/resource issues; fix client defects. |
 | B | Review geometry/canonicalization against independent fixtures and IL2CPP behavior; resolve core correctness defects. |
-| C | Validate the real backend ASR/intent-model creation pipeline from the target headset under realistic network/load conditions, privacy cleanup and approved resource limits. |
+| C | On-device voice on Quest: whisper.cpp latency/memory/frame impact with the bundled model; confirm the release APK contains no endpoint or network dependency (revision 1.2). |
 | D | Run full acceptance matrix, seated novice sessions, visual/audio/readability checks and license/content inventory; prepare actual-footage capture plan. |
 
 **Integrated outcome:** a polished candidate whose limits are accurately described and whose core journey is reliable on actual target hardware.
 
-**Gates:** technical-spec S23 R0 gates with evidence; required frame-rate criterion on Quest; thirty-minute soak; real hands/permissions/lifecycle tests; voice performance results; no critical/major unresolved core-path defect; cross-runtime fixtures; novice comprehension observations and asset/privacy checks.
+**Gates:** technical-spec S23 R0 gates with evidence; required frame-rate criterion on Quest; thirty-minute soak; real hands/permissions/lifecycle tests; passthrough, surface placement in unfamiliar rooms, and gaze (AC33–AC35); no critical/major unresolved core-path defect; cross-runtime fixtures; novice comprehension observations and asset/privacy checks.
 
 If required device testing is unavailable, record blocked coverage and complete other checks. Do not mark this phase passed from simulator-only evidence or silently advance to a supposedly verified release. Stop launching unrelated features during stabilization.
 
@@ -292,6 +309,8 @@ Coordinator assembles the final release summary and a concrete reviewable submis
 ## 14. First coordinator instruction
 
 Read this file and the existing specifications. Inspect actual repository/tooling state. Bootstrap the minimal Git/state baseline, then start Phase 0 with four isolated engineering workers using the ownership table. Integrate their work, verify phase gates, write the summary and advance automatically when gates pass. Preserve the current product scope, stop dependent work on genuine blockers, and report only checks actually performed.
+
+Revision 1.2 — 6 November 2026: aligned with version 2.2 (decision D12). No server in R0. Voice stays and runs on the headset (whisper.cpp in the APK plus the C# rule-based interpreter). Gates that need a hosted service or a model-assisted interpreter (model access/deployment, backend/model-assisted intent, deployed backend, deployed voice benchmark) become `not_applicable` for R0, with D12 as rationale, and move to R1. A new on-device voice benchmark gate replaces them. Phase 4b adds passthrough, MRUK surface placement and gaze.
 
 Revision 1.1 — 4 November 2026: aligned with technical-spec/demo-scope/CLAUDE version 2.1. Required backend work starts in Phase 0; primary voice creation uses server-assisted ASR and model interpretation. Offline rehearsal and deferred R1 synchronization retain their existing boundaries. Orchestration policy is unchanged.
 

@@ -7,7 +7,9 @@
         "Tryscape.Content.MovingDay",
         "Oculus.Interaction",
         "UnityEngine.UI",
-        "Tryscape.Infrastructure"
+        "Tryscape.Infrastructure",
+        "Oculus.VR",
+        "meta.xr.mrutilitykit"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

@@ -26,6 +26,7 @@ namespace Tryscape.Unity.Experience
 
         public const string HelpText =
             "Grab the console table with a pinch or ray to move it. Release on a clear spot to place it. " +
+            "You can also look at a button or the console and pinch to select it (gaze). " +
             "Rehearse checks the selected route in the model and replays it. " +
             "Results are illustrative: floor footprint only; height, turning and lifting are not assessed.";
 
@@ -151,6 +152,11 @@ namespace Tryscape.Unity.Experience
                 case "PauseAll": _app.TogglePauseAll(); break;
                 case "ReloadSaved": _app.ReloadSaved(); break;
                 case "SettingsHelp": ShowMessage(HelpText); break;
+                case "TogglePassthrough": _app.TogglePassthrough(); break;
+                case "PlaceOnSurface": _app.PlaceOnSurface(); break;
+                case "SetUpSpace": _app.SetUpSpace(); break;
+                case "PlaceFloating": _app.PlaceFloating(); break;
+                case "ToggleGaze": _app.ToggleGaze(); break;
                 case "ResumeLast": _app.ResumeLast(); break;
                 case "OnboardingOk": _app.DismissOnboarding(); break;
                 case "Help": ShowMessage(HelpText); break;
@@ -233,7 +239,21 @@ namespace Tryscape.Unity.Experience
             SetActive(_projectsSection, mode == AppMode.Projects);
             SetActive(_settingsSection, mode == AppMode.Settings);
             if (_settingsCard != null)
-                _settingsCard.text = mode == AppMode.Settings ? _app.AboutText : "";
+                _settingsCard.text = mode == AppMode.Settings ? _app.SettingsText : "";
+            var mr = _app.MixedReality;
+            SetVisible("TogglePassthrough", mr != null);
+            SetVisible("PlaceOnSurface", mr != null);
+            SetVisible("SetUpSpace", mr != null);
+            SetVisible("PlaceFloating", mr != null);
+            SetVisible("ToggleGaze", _app.Gaze != null && _app.Gaze.Wired);
+            if (mr != null)
+            {
+                SetLabel("TogglePassthrough", mr.PassthroughOn ? "Passthrough off" : "Passthrough on");
+                SetLabel("PlaceOnSurface", mr.SurfaceCount > 1 ? "Next surface" : "Place on table");
+                SetInteractable("PlaceOnSurface", !mr.Scanning);
+            }
+            if (_app.Gaze != null)
+                SetLabel("ToggleGaze", _app.Gaze.Source == Tryscape.Unity.MixedReality.GazeSource.Head ? "Use eye gaze" : "Use head gaze");
             SetVisible("Settings", mode != AppMode.Settings);
             SetVisible("ResumeLast", _app.Resumable != null);
             if (_app.Resumable != null)

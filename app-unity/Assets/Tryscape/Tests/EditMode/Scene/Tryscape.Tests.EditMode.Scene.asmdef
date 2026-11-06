@@ -1,0 +1,28 @@
+{
+    "name": "Tryscape.Tests.EditMode.Scene",
+    "rootNamespace": "Tryscape.Tests.EditMode.Scene",
+    "references": [
+        "UnityEngine.TestRunner",
+        "UnityEditor.TestRunner",
+        "Tryscape.Unity",
+        "Oculus.Interaction",
+        "Oculus.VR",
+        "meta.xr.mrutilitykit",
+        "UnityEngine.UI"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": true,
+    "precompiledReferences": [
+        "nunit.framework.dll"
+    ],
+    "autoReferenced": false,
+    "defineConstraints": [
+        "UNITY_INCLUDE_TESTS"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

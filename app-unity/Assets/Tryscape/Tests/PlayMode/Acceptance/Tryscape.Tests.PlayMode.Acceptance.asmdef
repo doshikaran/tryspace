@@ -10,7 +10,9 @@
         "Tryscape.Unity",
         "Oculus.Interaction",
         "UnityEngine.UI",
-        "Tryscape.Infrastructure"
+        "Tryscape.Infrastructure",
+        "Oculus.VR",
+        "meta.xr.mrutilitykit"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

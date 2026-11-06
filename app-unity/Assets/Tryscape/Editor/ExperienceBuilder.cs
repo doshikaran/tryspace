@@ -5,6 +5,7 @@ using Oculus.Interaction;
 using Oculus.Interaction.Editor.QuickActions;
 using Tryscape.Unity;
 using Tryscape.Unity.Experience;
+using Tryscape.Unity.MixedReality;
 using Tryscape.Unity.Presentation;
 using UnityEditor;
 using UnityEngine;
@@ -26,7 +27,7 @@ namespace Tryscape.Editor
 
         static Font _font;
 
-        public static void Build()
+        public static void Build(OVRPassthroughLayer passthroughLayer, Camera camera, GameObject virtualEnvironment)
         {
             EnsureFolder(ContentRoot + "/Materials");
             EnsureFolder(ContentRoot + "/Prefabs");
@@ -71,6 +72,15 @@ namespace Tryscape.Editor
             var app = appGo.AddComponent<TryscapeApp>();
             app.Configure(presenter, ghost, panel, tabletopController, highlight);
 
+            var mixedReality = appGo.AddComponent<MixedRealityController>();
+            mixedReality.Configure(passthroughLayer, camera, virtualEnvironment, tabletopController);
+            var gazeController = appGo.AddComponent<GazeController>();
+            var eyeGaze = UnityEngine.Object.FindObjectsByType<Oculus.Interaction.Input.EyeGaze>(FindObjectsInactive.Include, FindObjectsSortMode.None)
+                .FirstOrDefault(g => g.GetType() == typeof(Oculus.Interaction.Input.EyeGaze))
+                ?? throw new InvalidOperationException("No EyeGaze in scene after gaze quick actions");
+            gazeController.Configure(eyeGaze);
+            app.ConfigureMixedReality(mixedReality, gazeController);
+
             AssetDatabase.SaveAssets();
         }
 
@@ -100,6 +110,11 @@ namespace Tryscape.Editor
             var created = new List<GameObject>();
             created.AddRange(QuickActionsAPI.AddGrabInteraction(root));
             created.AddRange(QuickActionsAPI.AddRayGrabInteraction(root));
+            // Gaze grab with ray fallback: look at the console and pinch; the hand's motion moves it (AC35).
+            var gazeObjects = QuickActionsAPI.AddGazeInteraction(root, enableRayFallback: true);
+            if (gazeObjects.Count == 0)
+                throw new InvalidOperationException("Gaze quick action created nothing");
+            created.AddRange(gazeObjects);
             var rigidbody = root.GetComponent<Rigidbody>();
             if (rigidbody == null)
                 throw new InvalidOperationException("Grab quick action did not add a Rigidbody");
@@ -188,15 +203,21 @@ namespace Tryscape.Editor
             // Always available (D05): Settings / Help / Pause / Reload route, top-right of the panel in every mode.
             buttons.Add(Button(canvasGo.transform, "Settings", "Settings", 205, 405, 130));
             var settings = Section(canvasGo.transform, "Settings Section");
-            var settingsCard = Text(settings, "SettingsCard", "", 17, FontStyle.Normal, new Vector2(0, 150), new Vector2(520, 170));
+            var settingsCard = Text(settings, "SettingsCard", "", 15, FontStyle.Normal, new Vector2(0, 215), new Vector2(520, 190));
             settingsCard.alignment = TextAnchor.UpperLeft;
-            buttons.Add(Button(settings, "RotateViewLeft", "Turn view left", -130, 40, 250));
-            buttons.Add(Button(settings, "RotateViewRight", "Turn view right", 130, 40, 250));
-            buttons.Add(Button(settings, "ResetView", "Reset view", -130, -25, 250));
+            // Mixed reality and gaze (S11): presentation only.
+            buttons.Add(Button(settings, "TogglePassthrough", "Passthrough off", -130, 95, 250));
+            buttons.Add(Button(settings, "PlaceOnSurface", "Place on table", 130, 95, 250));
+            buttons.Add(Button(settings, "SetUpSpace", "Set up my space", -130, 35, 250));
+            buttons.Add(Button(settings, "PlaceFloating", "Float in front of me", 130, 35, 250));
+            buttons.Add(Button(settings, "ToggleGaze", "Use head gaze", -130, -25, 250));
             buttons.Add(Button(settings, "PauseAll", "Pause replay", 130, -25, 250));
-            buttons.Add(Button(settings, "ReloadSaved", "Reload last save", -130, -90, 250));
-            buttons.Add(Button(settings, "SettingsHelp", "Help", 130, -90, 250));
-            buttons.Add(Button(settings, "SettingsBack", "Close settings", 0, -155, 250));
+            buttons.Add(Button(settings, "RotateViewLeft", "Turn view left", -130, -85, 250));
+            buttons.Add(Button(settings, "RotateViewRight", "Turn view right", 130, -85, 250));
+            buttons.Add(Button(settings, "ResetView", "Reset view", -130, -145, 250));
+            buttons.Add(Button(settings, "ReloadSaved", "Reload last save", 130, -145, 250));
+            buttons.Add(Button(settings, "SettingsHelp", "Help", -130, -205, 250));
+            buttons.Add(Button(settings, "SettingsBack", "Close settings", 130, -205, 250));
 
             // Typed development transcript entry. Labelled as development input; this is not voice recognition.
             var describe = Section(canvasGo.transform, "Describe");
@@ -312,7 +333,12 @@ namespace Tryscape.Editor
                 projects.gameObject, projectsCard, settings.gameObject, settingsCard);
 
             var created = QuickActionsAPI.AddRayCanvasInteraction(canvasGo).Concat(QuickActionsAPI.AddPokeCanvasInteraction(canvasGo)).ToList();
-            Debug.Log($"[Tryscape] Panel canvas interaction objects created={created.Count}");
+            // Gaze (S11, AC35): look and pinch; the ray stays the pointer whenever eye gaze is not tracked.
+            var gaze = QuickActionsAPI.AddGazeCanvasInteraction(canvasGo, enableRayFallback: true);
+            if (gaze.Count == 0)
+                throw new InvalidOperationException("Gaze canvas quick action created nothing");
+            created.AddRange(gaze);
+            Debug.Log($"[Tryscape] Panel canvas interaction objects created={created.Count} (gaze {gaze.Count})");
             return controller;
         }
 

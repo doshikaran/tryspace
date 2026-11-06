@@ -1,6 +1,6 @@
 # Tryscape — Technical Specification
 
-Version: 2.1 · Prepared: 4 November 2026 · Owner: Tryscape engineering team
+Version: 2.2 · Prepared: 4 November 2026 · Revised: 6 November 2026 · Owner: Tryscape engineering team
 
 Status: implementation baseline; no application implementation or device test results accompany this document.
 
@@ -28,17 +28,17 @@ Where documents disagree, resolve the disagreement explicitly before implementin
 
 | Profile | Required behavior | What it does not imply |
 | --- | --- | --- |
-| R0 — competition | Required Python AI-creation backend, native hands-first rehearsal, voice creation for supported requests, local projects, explanation, replay, comparison, accessible judge build. | Universal generation, engineering certification, cloud project synchronization, commercial SLA. |
-| R1 — connected private pilot | Authenticated project synchronization, expanded account data management, deployment monitoring and tested account-data backup/restore. | Open public registration or autonomous decisions in physical environments. |
+| R0 — competition | Native hands-first rehearsal in passthrough mixed reality with MRUK surface placement and gaze-and-pinch selection; on-device voice creation (whisper.cpp + rule-based interpreter) and hand creation; local projects, explanation, replay, comparison; accessible judge build with no server dependency. The Python creation service is an optional development component. | Universal generation, engineering certification, cloud project synchronization, commercial SLA, AI-model interpretation. |
+| R1 — connected private pilot | Hosted voice-creation service with a model-assisted interpreter (judge/pilot reachable HTTPS), authenticated project synchronization, expanded account data management, deployment monitoring and tested account-data backup/restore. | Open public registration or autonomous decisions in physical environments. |
 | R2 — public production | R0/R1 checks plus measured reliability, documented privacy, abuse controls, accessibility review, operational runbooks and domain validation. | Support for every domain. New domains require their own validated scenario pack. |
 
-Sections identify R1/R2 work explicitly. The creation backend and its minimum operational/security infrastructure are R0 requirements, not deferred pilot work. Accounts, cloud project synchronization and unrelated R1/R2 infrastructure remain deferred until the R0 end-to-end experience works.
+Sections identify R1/R2 work explicitly. Revision 2.2: a hosted creation backend is R1 work; R0 keeps the service code working and tested as a development component. Accounts, cloud project synchronization and unrelated R1/R2 infrastructure remain deferred until the R0 end-to-end experience works.
 
 ### S01.2 Assumptions and unresolved deployment facts
 
 - Four contributors, each at least twenty hours per week. Treat additional spending as zero unless the owner supplies another budget. Existing subscriptions and equipment have not been audited.
-- Unity/C# is the native client; Claude Code is the development assistant. A Python 3.12/FastAPI/Pydantic 2 backend is required for the primary voice-to-scene creation pipeline. It is not the Unity gameplay runtime and is not required to manipulate or rehearse an already-created scene.
-- Voice creates or configures the initial environment. All subsequent supported actions are hand operated. A hand-only creation route must also exist.
+- Unity/C# is the native client; Claude Code is the development assistant. In R0, voice-to-scene runs on the headset (on-device ASR plus the C# rule-based interpreter). The Python 3.12/FastAPI/Pydantic 2 service is an optional development component, hosted in R1; no R0 feature depends on it.
+- Voice or hands create the initial environment. All subsequent supported actions are hand operated, with gaze-and-pinch as an alternative pointer.
 - Moving Day is the implementation default because it has a bounded, testable geometry problem. It is not represented as final user approval after the later cinematic-demo discussion. A different demo requires a scope revision and fresh acceptance fixtures.
 - Hardware operating systems, exact available Quest devices, model inference capacity and hosting accounts remain unverified. M0 records them. Never mark unavailable tests as passed.
 - No source repository, server, model weights or credentials are included in this document package.
@@ -73,13 +73,13 @@ The baseline is a compatibility candidate, not an already tested combination. Me
 | Client engine | Unity 6 LTS; prefer a supported 6000.3 LTS patch if the M0 sample passes. | Exact patch in `ProjectSettings/ProjectVersion.txt`; sample/build logs in M0 evidence. |
 | Rendering | URP, mobile-friendly materials, initially one forward-rendered scene. | URP dependency locked with editor; profile both Quest targets. |
 | XR provider | Unity OpenXR, Meta feature group for Standalone and Android. | Candidate 1.15.1 per Meta provider guidance; lock resolved compatible patch. |
-| Meta interaction | Meta Core/Interaction SDK family 207.0 candidate; MRUK only where needed. | `Packages/manifest.json` and `packages-lock.json`; no mixed major SDK families. |
+| Meta interaction | Meta Core/Interaction SDK family 207.0 candidate; MR Utility Kit 207.0.x for passthrough surface placement (same SDK family). | `Packages/manifest.json` and `packages-lock.json`; no mixed major SDK families. |
 | Simulator | Standalone Meta XR Simulator; 207.1 candidate on supported platform. | Installation/version recorded separately from Unity packages. Do not install deprecated simulator UPM binaries. [REF-05] |
 | Language | C# supported by the pinned Unity compiler; pure core compatible with Unity's supported .NET profile. | No assumption that current desktop .NET APIs work in IL2CPP. |
 | Player | Android ARM64, IL2CPP, APK for distribution through release channel. | Android SDK/NDK/JDK supplied for pinned editor; dashboard requirements checked at M0 and release. [REF-06] |
 | Serialization | Unity-compatible Newtonsoft.Json package, wrapped behind DTO serializers. | Resolve and lock exact package; explicit DTOs, no arbitrary polymorphic deserialization. |
-| Backend ASR | Required backend transcription adapter using an approved existing provider or server-side inference such as whisper.cpp. On-device ASR is deferred. | M0 selects exact provider/model, verifies license and cost, and measures end-to-end performance; no assumed free quota. [REF-09] |
-| Required AI creation service | Python 3.12, FastAPI, Pydantic 2, Uvicorn, HTTPX; pytest, Ruff, mypy. Backend ASR orchestration, model-assisted intent extraction, validation and bounded scene assembly. | `pyproject.toml`, committed `uv.lock`, `uv sync --frozen`; pinned ASR/intent-model and prompt/compiler versions. |
+| Speech recognition | R0: on-device whisper.cpp (pinned release, built with the pinned NDK for arm64-v8a) behind `ITranscriptionProvider`, with a bundled ggml English model. The optional service keeps its server-side whisper.cpp adapter. | Record exact whisper.cpp commit, model file hash, licence, APK size impact and measured Quest latency/memory. [REF-09] |
+| Optional creation service (R0 development; hosted in R1) | Python 3.12, FastAPI, Pydantic 2, Uvicorn, HTTPX; pytest, Ruff, mypy. Backend ASR orchestration, model-assisted intent extraction, validation and bounded scene assembly. | `pyproject.toml`, committed `uv.lock`, `uv sync --frozen`; pinned ASR/intent-model and prompt/compiler versions. |
 | Backend persistence | PostgreSQL 18 supported minor, SQLAlchemy 2 and Alembic required in R0 for jobs/sessions/idempotency. R1 adds account/project synchronization and private object storage when needed. | Image digest or managed version, migrations and recovery tests. No cloud account/project tables required in R0. PostgreSQL support policy in REF-12. |
 | CI | GitHub Actions or equivalent existing runner; self-hosted Unity where licensing/resources require it. | Do not assume paid runners or Unity license entitlement. |
 
@@ -105,7 +105,7 @@ flowchart TD
     Core --> Store["Local project store"]
 ```
 
-The domain owns model-space state and result semantics. Unity owns presentation, audio capture, input and lifecycle. The required Python backend owns ASR/model orchestration, strict intent validation and bounded scene proposals; R1 adds project synchronization. It never declares a route safe merely because a model says so. After creation, editing, evaluation, replay, comparison and local saving run on the client without server calls. Hand-created templates bypass cloud creation as a fallback, not as a substitute for the required AI feature.
+The domain owns model-space state and result semantics. Unity owns presentation, audio capture, input and lifecycle. The optional Python service owns ASR/model orchestration, strict intent validation and bounded scene proposals; R1 hosts it and adds project synchronization. It never declares a route safe merely because a model says so. After creation, editing, evaluation, replay, comparison and local saving run on the client without server calls. In R0, hand-created templates are the primary creation path.
 
 ### S04.1 Assembly and package ownership
 
@@ -133,7 +133,7 @@ These are **future implementation paths**, not existing files in this package.
 | `app-unity/Assets/Tryscape/Content/` | Scenario manifests, curated prefabs and generic licensed art. |
 | `app-unity/Assets/Tryscape/Tests/EditMode/`, `Tests/PlayMode/` | Behavior and lifecycle tests. |
 | `contracts/` | Versioned JSON Schemas and fixtures extracted from S06–S14. |
-| `services/api/` | Required R0 Python creation API/worker and minimum migrations. R1-only endpoints remain unimplemented until their gate. |
+| `services/api/` | Optional R0 (development) Python creation API/worker and minimum migrations. R1-only endpoints remain unimplemented until their gate. |
 | `scripts/` | Portable checks and packaging scripts implemented in M0/M1. |
 | `artifacts/` | Ignored local builds, reports and profiler evidence. |
 | `docs/` | These documents; later environment, release and operations records. |
@@ -363,13 +363,31 @@ The scene hash includes the selected route and revision. Result identity additio
 
 ## S10. Voice, intent and generation
 
-### S10.1 Required product journey
+### S10.1 Product journey
+
+> **Revision 2.2 (6 November 2026):** R0 voice runs on the headset. whisper.cpp with a bundled English model transcribes in the APK, and the rule-based interpreter (`deterministic_rules`, ported to C#) builds the proposal. The release APK has no service endpoint and makes no network calls. The Python service described here is an optional development component; hosting it with a model-assisted interpreter is R1. See D12.
+
 
 User chooses Speak, grants microphone permission if needed, records at most 15 seconds, stops, sees the transcript and proposed scene summary, then confirms with hands. From that point, hand controls operate the rehearsal. A hand-selectable template and parameter editor provide the same supported scene-creation capabilities without microphone access.
 
-Voice creation is an R0 product acceptance requirement; the hand fallback does not falsely count as passing the voice feature. It does preserve a usable competition experience if speech is unavailable. If voice cannot meet its device/reliability gate, the owner must explicitly change the release scope before claiming it complete.
+Voice creation is an R0 product acceptance requirement and runs on the headset (revision 2.2). The hand fallback does not count as passing the voice feature. If on-device voice cannot meet its device gate, the owner must explicitly change the release scope before claiming it complete. The interpreter is rule-based and must never be described as AI.
 
-### S10.2 Required backend pipeline and client adapters
+### S10.2 R0 on-device pipeline (revision 2.2)
+
+The R0 creation pipeline runs in four steps:
+1. Unity records bounded 16 kHz mono audio.
+2. On-device `WhisperTranscriptionProvider` runs whisper.cpp in a native arm64 library through P/Invoke on a worker thread, so the render thread never blocks.
+3. The user reviews the transcript.
+4. `LocalSceneProposalProvider`, the C# port of `deterministic_rules`, produces a `SceneProposal` with the same contract as the service. Unity validation and hand confirmation follow.
+
+Both providers implement the existing `ITranscriptionProvider` / `ISceneProposalProvider` interfaces. The `CreationCoordinator` budget, cancellation and stale-result rules therefore apply unchanged.
+
+The C# interpreter must give the same proposal as the Python interpreter for every shared fixture transcript. This is a cross-runtime parity test.
+
+The ggml model ships in the APK's StreamingAssets, is copied to app storage on first use, and its SHA-256 is verified before loading. A missing or corrupt model is a typed `asr_unavailable` failure that offers hand creation, never a crash. The model is loaded on first voice use, not at startup. It is released on suspension and on memory pressure. Audio is never written to disk.
+
+### S10.2a Optional service pipeline and client adapters
+
 
 `ITranscriptionProvider.TranscribeAsync(AudioClipData, cancellation)` returns text, provider ID, locale, elapsed time and optional provider confidence. `ISceneProposalProvider.ProposeAsync(transcript, supportedCatalog, cancellation)` returns a typed `SceneProposal`. In R0, both are client-side HTTP adapters to the required backend job endpoints in S13. Neither can invoke scene methods or return executable code.
 
@@ -403,7 +421,13 @@ Default is a seated tabletop view. Keep the room within a reachable uniform scal
 
 Use Meta Interaction SDK adapters for direct grab and ray selection. Runtime input is translated to application intents rather than referencing domain entities through Unity instance IDs. Provide a consistent selected-state outline, floor shadow and release target. Prefer one-hand interactions in R0. Optional two-hand scaling may transform the tabletop root only and must never resize the modelled sofa or room.
 
-If passthrough is enabled, anchor the tabletop to a detected or explicitly placed surface where supported and validate behavior in multiple real rooms. Failure to obtain room data must offer manual tabletop placement or a neutral VR environment. Passthrough must not be a required room scan when voice has created an illustrative scene. Actual-room reconstruction and its measurement uncertainty are outside R0.
+**Passthrough is required in R0 (revision 2.2).** The app starts in passthrough (OVRManager insight passthrough plus an underlay `OVRPassthroughLayer`, camera cleared to transparent). Settings can switch to a neutral virtual background and back; this is presentation state.
+
+Surface placement uses MR Utility Kit 207.0.x. When the user enters placement, request the spatial-data permission (`com.oculus.permission.USE_SCENE`) and load the room from the device. Candidate surfaces are MRUK anchors labelled TABLE, COUCH, STORAGE, BED or OTHER that have a horizontal plane facing up, at a height of 0.4–1.2 m and within 1.5 m of the head. Choose the nearest one and snap the tabletop root's position and yaw to it, leaving a 0.02 m gap above the plane. The user can step through the other candidates. Ranking is a pure function in the application layer, so it can be tested without Unity.
+
+If there is no permission, no scene model, no room or no candidate, keep a manual placement in front of the user at seated height and show why. Never block the rehearsal on a room scan. Placement changes only the presentation transform; scene hash and results do not change. A placed surface is not a measurement of the real room. Actual-room reconstruction and its measurement uncertainty are outside R0. Validate in multiple real rooms the developer did not set up.
+
+**Gaze is required in R0 (revision 2.2).** Use the Interaction SDK v207 gaze stack: `EyeGaze` → `GazeConecaster` → `GazeInteractor` with a pinch selector, `GazeInteractable` on the console and gaze canvas interaction on the panel. Ray fallback is active: when eye tracking is unavailable or not permitted (Quest 3/3S have no eye tracking), hand rays keep working unchanged. Gaze hover highlights a target; pinch selects it. Dwell alone never commits an edit. Request the eye-tracking permission only when gaze is enabled.
 
 Settings, pause, help, reload and recovery controls must work with hands. Provide hand-selectable microphone controls and typed/choice-based dimension editing. Do not assume speech, controllers, a phone, a laptop or a third-party accessory is available during judging. Full-scale viewing is optional future presentation work; it must not become a completion requirement or imply new physical accuracy.
 
@@ -421,9 +445,11 @@ Initial limits: 20 projects, 20 saved runs per project, 1 MiB maximum per JSON s
 
 Schema upgrades are explicit functions with fixtures. Unknown newer major versions remain read-protected and are not rewritten. Keep original bytes until a migrated copy passes validation. Test migration twice to verify idempotence and preserve prior run attribution. Device uninstall can remove local data; disclose this in pilot onboarding before users rely on persistence.
 
-## S13. Required AI creation backend and API contract
+## S13. Creation backend and API contract (optional in R0)
 
-Implement the creation API and worker in R0. PostgreSQL stores minimum durable job, anonymous-session and idempotency records, separate from deferred cloud account/project storage. Existing local scenes and the hand-selectable template fallback require neither server nor database at runtime. Public deployment is never accomplished by pointing an APK at a developer's `localhost`: on Quest that address identifies the headset itself. A development LAN address is allowed in a debug configuration; release configurations accept allowlisted HTTPS origins only.
+> **Revision 2.2 (6 November 2026):** R0 voice runs on the headset. whisper.cpp with a bundled English model transcribes in the APK, and the rule-based interpreter (`deterministic_rules`, ported to C#) builds the proposal. The release APK has no service endpoint and makes no network calls. The Python service described here is an optional development component; hosting it with a model-assisted interpreter is R1. See D12.
+
+Implement the creation API and worker as a development component. PostgreSQL stores minimum durable job, anonymous-session and idempotency records, separate from deferred cloud account/project storage. Existing local scenes and the hand-selectable template fallback require neither server nor database at runtime. Public deployment is never accomplished by pointing an APK at a developer's `localhost`: on Quest that address identifies the headset itself. A development LAN address is allowed in a debug configuration; release configurations accept allowlisted HTTPS origins only.
 
 Use FastAPI routes with strict Pydantic DTOs (`extra='forbid'`, bounded integers/strings, explicit unions). Use lifespan-managed provider clients and connection pools. Native model inference and slow work run in a bounded worker process; they do not block the ASGI request event loop. A separate worker is required for durable jobs. Do not present FastAPI in-process background tasks as a durable queue. [REF-10, REF-11]
 
@@ -457,7 +483,7 @@ Use FastAPI routes with strict Pydantic DTOs (`extra='forbid'`, bounded integers
 | `POST /v1/projects/{id}/runs` | R1 | Client RunSnapshot | 201 marked `client_derived`; validate shape, ownership and size, never claim server validation. |
 | `POST /v1/account/deletion-requests` | R2 | Authenticated confirmation token | 202 tracked deletion request; operationally complete within stated retention policy. |
 
-Any endpoint referenced by the shipping client must exist and be contract-tested. Deferred routes are omitted from the R0 client and are not implemented as misleading 200 stubs. Health, anonymous-session, transcription/proposal creation, polling and cancellation are required R0 routes and must be deployed for release. Account/project-sync endpoints remain R1.
+Any endpoint referenced by the shipping client must exist and be contract-tested. Deferred routes are omitted from the R0 client and are not implemented as misleading 200 stubs. Health, anonymous-session, transcription/proposal creation, polling and cancellation are the implemented routes; deploying them is R1 work (revision 2.2). Account/project-sync endpoints remain R1.
 
 For accountless hosted creation, issue a cryptographically random 256-bit session token from the anonymous-session endpoint, store only its hash with a 1-hour expiry, and send it through the Authorization Bearer header on job operations. Return the raw token only at creation and retain it only in client memory. Scope job lookup/cancellation and idempotency keys to that session. This prevents simple cross-session job access; it does not make an anonymous public client trusted. Apply IP/global limits to session issuance as well as job creation so minting new sessions does not bypass spending controls. For R1, OIDC access tokens supply the owner scope. Never return job results based solely on possession of a job UUID. Expired sessions can still use local rehearsal and create a new session; old private job results are not reassigned to it.
 
@@ -747,15 +773,15 @@ Do not interpret milestones as a waterfall: backend/model feasibility starts at 
 
 ### S23.1 R0 competition gate
 
-- Demo-scope acceptance cases pass with evidence, including deployed backend-assisted voice creation and a hand-only alternative. A template fallback alone cannot pass the primary creation feature.
+- Demo-scope R0 acceptance cases pass with evidence: on-device voice creation (AC02, AC23) and hand creation, passthrough with surface placement and manual fallback (AC33/AC34) and gaze selection with ray fallback (AC35). Service cases AC29–AC31 are not R0 gates (revision 2.2).
 - All required menus, creation, manipulation, replay, comparison and recovery are usable without controllers.
-- Required backend health, ASR/intent-model configuration, HTTPS access, anonymous job isolation, rate limits, cancellation, retention and outage recovery are verified. Provider/model/prompt/compiler versions and operating capacity are recorded.
+- The release APK contains no service endpoint, credential or network dependency. The optional service's automated checks keep passing.
 - Core/API/content checks appropriate to shipping features pass; no critical or major known defect in the core journey.
 - APK runs on Quest 3/3S; hardware performance meets the stated criterion and essential UI remains comfortable. If a target device is unavailable, record the missing coverage and do not certify it from the simulator.
 - Offline/local entry works; no required developer laptop, private localhost service, third-party accessory or undisclosed paid account.
 - Audio/privacy behavior, generic asset licensing and policy/eligibility checks are complete.
 - Judge access is verified from a separate account where possible. Submission is the release-channel invite URL, not a loose APK attachment. Actual-footage video is under three minutes. [REF-01, REF-08]
-- Freeze APK, content/catalog, provider/model config and required service behavior at deadline; keep access free and available through winner announcement. Current deadline: 18 November 2026, noon PST / 19 November 2026, 01:30 IST. Recheck official page before release. [REF-01]
+- Freeze APK and content/catalog at deadline; keep access free and available through winner announcement. Current deadline: 18 November 2026, noon PST / 19 November 2026, 01:30 IST. Recheck official page before release. [REF-01]
 
 ### S23.2 R1 pilot gate
 
@@ -769,21 +795,24 @@ Security review of client/service/native dependencies; consent/privacy notices m
 
 | ID | Decision | Rationale / revisit trigger |
 | --- | --- | --- |
-| D01 | Unity/C# native client; required Python backend for AI creation. | One spatial runtime and one domain authority; revisit only for measured platform need. |
+| D01 | Unity/C# native client; Python backend for AI creation (optional in R0 per D12). | One spatial runtime and one domain authority; revisit only for measured platform need. |
 | D02 | Moving Day is provisional reference pack. | Bounded geometry and reusable core; owner may select a different final demo, which requires a scope revision. |
 | D03 | Voice creates; hands operate; hands also create through controls. | Preserves user intent and end-to-end hands requirement. |
 | D04 | Curated assets and parametric templates for R0. | Reliable real-time scene construction within available time; arbitrary 3D generation deferred. |
 | D05 | Fixed-orientation 2D continuous translation evaluator. | Explainable, reproducible and testable; extend only with new model claims/fixtures. |
-| D06 | Required backend creation; local-first rehearsal/projects. | Model-assisted creation uses FastAPI; existing rehearsal stays usable offline. Accounts/cloud project sync remain R1. |
-| D07 | Backend ASR and intent-model deployment selected at M0. | Verify exact models, budgets and service reachability; no laptop dependency or silent local-parser substitution. |
+| D06 | Backend creation (R1 per D12); local-first rehearsal/projects. | Model-assisted creation uses FastAPI; existing rehearsal stays usable offline. Accounts/cloud project sync remain R1. |
+| D07 | Backend ASR and intent-model deployment selected at M0 (superseded for R0 by D12). | Verify exact models, budgets and service reachability; no laptop dependency or silent local-parser substitution. |
 | D08 | Exact toolchain pinned after M0, not fabricated here. | Published compatibility is necessary but not actual integration evidence. |
 | D09 | 2026-11-05: Unity line is 6000.3 LTS (latest patch at install), not 6000.0. | Unity 6.0 LTS support ended October 2026; 6.3 LTS is supported to December 2027 and meets Meta 207.0's 6000.0.66f2 minimum. Exact patch is still pinned only after the M0 build (D08). |
 | D11 | 2026-11-05: Editor pinned to **6000.6.8f1** (Unity 6.6, a *Supported* non-LTS release) because it is the installed editor and Meta 207.0.1 + OpenXR 1.17.1 compile, run on the simulator and build ARM64 on it. This deviates from "Unity 6 LTS"; 6.6 receives updates only until 6.7 LTS ships. | Revisit before release: move to 6.7 LTS (or 6000.3 LTS) if 6.6 support ends before judging closes, re-running all M0 gates. |
+| D12 | 2026-11-06 (owner): the official rules require an APK in the Competition release channel and no hosted service. R0 ships without a server. Voice stays and runs on the headset: whisper.cpp in the APK plus the rule-based interpreter ported to C#. The Python service becomes a development component; hosting it and a model-assisted interpreter move to R1. Passthrough with MRUK surface placement and Interaction SDK gaze become R0 requirements, because the judging criteria name them. | Revisit if on-device ASR fails its Quest latency/memory gate, or if the owner approves a hosted service and budget. |
 | D10 | 2026-11-05: First v1 contract extraction in `contracts/v1/`, with clarifications listed in its README (UUID case, assumption sources, `validation_errors`, violation-fraction and tie-break semantics, snapping as a command rule). | Fills S06/S08/S09 gaps without changing product meaning; revisit through this register if wrong. |
 
 Before replacing a decision, record author/date, changed behavior, affected contracts, fixture changes, migration needs, measured reason and release impact. A different demo is a product decision, not permission for Claude to silently rebrand or rewrite the platform.
 
 Revision 2.1 — 4 November 2026: backend-assisted AI creation is now the required primary architecture, following the owner's clarification. Updated service scope, minimum persistence, voice processing, delivery estimates and release gates. Rehearsal authority, geometry fixtures and deferred project synchronization remain unchanged.
+
+Revision 2.2 — 6 November 2026: decision D12. No server in R0; voice runs on the headset; passthrough with MRUK surface placement and gaze are required. S01, S03, S04, S10, S11, S13 and S23 are updated accordingly. Geometry, contracts and fixtures are unchanged.
 
 ## S25. Sources and verification notes
 

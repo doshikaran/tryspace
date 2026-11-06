@@ -1,6 +1,6 @@
 # Tryscape — Competition Demo Scope
 
-Version: 2.1 · Prepared: 4 November 2026
+Version: 2.2 · Prepared: 4 November 2026 · Revised: 6 November 2026
 
 Status: buildable reference scope with explicit assumptions; **Moving Day is a provisional implementation default**, not a claim that the user approved it after every later idea discussion.
 
@@ -27,7 +27,7 @@ The user explored Moving Day, PC upgrades, a café, film blocking, accessibility
 | Primary audience | A person preparing a room for a furniture delivery. |
 | Immediate outcome | Identify a modelled obstruction, clear it or choose a supported alternative route, and understand the difference. |
 | Duration | A satisfying interaction in ≤5 minutes; complete supported session in ≤10 minutes. |
-| Reference platform | Native Unity APK for Quest 3/3S; desktop simulator for development. |
+| Reference platform | Native Unity APK for Quest 3/3S, passthrough mixed reality by default; desktop simulator for development. |
 
 Proposed form tagline, within 140 characters: **Turn a situation into a spatial rehearsal. Try your options, understand the consequences, and prepare before acting.**
 
@@ -43,21 +43,25 @@ The first reference rehearsal begins with the payload inside the room near an il
 
 ### D03.1 Entry and permissions
 
-Cold start opens a concise welcome panel with `Speak a situation`, `Create with hands`, `Open saved` and `Help`. No registration or external device is required for the core experience. Both creation routes reach the same editor and evaluator.
+Cold start opens in passthrough with a concise welcome panel offering `Describe with voice`, `Create with hands`, `Open saved` and `Help`. No registration, server, network or external device is required. Both creation routes reach the same editor and evaluator.
 
-Choosing Speak explains microphone use, then requests permission only if needed. Recording shows a visible indicator, elapsed time and hand-selectable Stop/Cancel. Maximum recording is 15 seconds. Losing focus stops recording. Declining permission immediately offers hand creation.
+The tabletop is placed on a real horizontal surface (see D03.3) before creation. Permissions are requested only when their feature is entered: spatial data when surface placement starts, microphone when voice starts, eye tracking when gaze is enabled. Declining any of them leaves the hand journey usable.
 
-### D03.2 Initial voice-created environment
+Choosing Speak explains that speech is processed on the headset, then requests microphone permission only if needed. Recording shows a visible indicator, elapsed time and hand-selectable Stop/Cancel. Maximum recording is 15 seconds. Losing focus stops recording. Declining permission immediately offers hand creation.
+
+### D03.2 Voice-created environment (on device)
 
 Suggested supported request: "Prepare a six by five metre living room for a sofa delivery. There is a console table in the way."
 
-Unity uploads bounded audio to the required Python backend after consent. The backend transcribes it, uses the configured AI model to interpret supported intent, validates the result and assembles a bounded proposal. Unity independently validates it and shows a review card. This backend is a required part of the primary creation path. The card displays interpreted dimensions, selected sofa, the obstruction state, the fixed-orientation model and `Example environment`. The user confirms or adjusts values with hand controls. No scene becomes authoritative merely because a model returned it.
+**Revision 2.2: voice creation runs entirely on the headset.** The competition requires an APK and no hosted service, so R0 has no server. Speech recognition (whisper.cpp with an English model bundled in the APK) and the rule-based interpreter (`deterministic_rules`, ported to C#) run on the Quest. Audio never leaves the device. The Python creation service remains an optional development component; a hosted service and a model-assisted interpreter are R1.
 
-The review must make defaults obvious. If the user says only "prepare my room", ask whether to use the example or enter dimensions. Selecting example values is not measurement confirmation. No raw recording is saved on the headset by default; backend temporary audio and transcript retention follow technical-spec S10/S13. Network access is required for primary voice creation. Existing/local hand-created scenes remain usable without it.
+The app transcribes the bounded recording on the headset, shows the transcript, interprets supported intent with the rule-based interpreter, validates the result and assembles a bounded proposal, then shows a review card. The card displays interpreted dimensions, selected sofa, the obstruction state, the fixed-orientation model and `Example environment`. The user confirms or adjusts values with hand controls. No scene becomes authoritative merely because the interpreter returned it.
+
+The review must make defaults obvious. If the user says only "prepare my room", ask whether to use the example or enter dimensions. Selecting example values is not measurement confirmation. Audio stays in memory on the headset and is released after transcription; no recording is saved. No network is needed.
 
 ### D03.3 Watch
 
-The room appears as a stable miniature within seated reach. A route line indicates the selected approach. Two stylized movers accompany the sofa at an illustrative speed. On evaluation, the route is blocked by the console footprint. Playback stops near the computed violation. A clear outline connects the named console to the result card.
+The room appears as a stable miniature on the user's real table or desk, seen through passthrough. On first entry the app uses Meta MR Utility Kit scene data to find horizontal table, desk or other surfaces near the user and places the tabletop on the nearest suitable one at seated reach; the user can move it to another detected surface. If no scene data exists, permission is denied or no surface is found, the app offers manual placement at a comfortable height in front of the user and says why. The real surface changes where and at what height the rehearsal sits, not the model geometry or the result. A route line indicates the selected approach. Two stylized movers accompany the sofa at an illustrative speed. On evaluation, the route is blocked by the console footprint. Playback stops near the computed violation. A clear outline connects the named console to the result card.
 
 Explanation: "The console table obstructs the sofa's modelled route. Move it aside or compare another approach." The model margin and unassessed aspects are available through a compact details control. The application must not imply that the sofa physically collided before the conservative clearance boundary.
 
@@ -81,8 +85,8 @@ The preparation summary is evidence-based: e.g., "Move the console out of the se
 
 | Input | R0 support and behavior |
 | --- | --- |
-| Spoken English | Supported initial creation; actual transcription and parameter extraction, not a prerecorded response. |
-| Hand-selectable template | Same reference pack and available parameter controls, without microphone or network. |
+| Spoken English | Supported initial creation, transcribed and interpreted on the headset; not a prerecorded response. The interpreter is rule-based (`deterministic_rules`), not an AI model. |
+| Hand-selectable template | Same reference pack and parameter controls, without microphone. |
 | Room width/depth | Integer-mm representation; user-facing m/cm controls; each dimension 5–8 m in this pack. |
 | Payload | One supported standard sofa; additional catalog entries only after acceptance tests. |
 | Initial obstruction | Console centered on route or parked south; selected through supported intent or hand controls. |
@@ -91,7 +95,7 @@ The preparation summary is evidence-based: e.g., "Move the console out of the se
 | Photos, PDFs, scans, arbitrary meshes | Not supported in R0; honest unsupported response. |
 | General future behavior prediction | Not supported; participants follow declared scenario behavior. |
 
-After initial creation, all supported scene editing, evaluation, playback, comparison and recovery are hand operated and run locally without backend calls. Voice-based editing may be considered later, but is not needed for this journey. Hand-only creation is an accessibility/compliance and outage fallback; it does not replace the requirement to demonstrate genuine backend-assisted AI creation. On-device ASR and a keyword-only local parser are not the primary R0 implementation.
+Voice or hands create the scene; editing, evaluation, playback, comparison and recovery are hand operated. Everything runs on the headset without any server. Do not present the `deterministic_rules` interpreter as AI.
 
 ## D05. Supported actions and controls
 
@@ -108,8 +112,11 @@ After initial creation, all supported scene editing, evaluation, playback, compa
 | Reset | Restore confirmed creation snapshot; preserve explicitly saved runs. | No silent deletion of prior projects. |
 | Recenter / tabletop zoom | Change presentation position/scale only. | Does not resize the domain geometry. |
 | Save / open / delete | Versioned local project persistence and recoverable failures. | No cloud account requirement. |
+| Place on a surface | Tabletop snaps to a detected real horizontal surface; reposition to another; manual placement fallback. | Placement is presentation only; it never measures the real room or changes geometry. |
+| Passthrough / virtual background | Passthrough is the default; Settings can switch to a neutral virtual background and back. | Switching never changes the scene or results. |
+| Gaze (look and pinch) | Look at a panel button or the console and pinch to select it; gazed items highlight. Uses eye tracking where the headset provides it, otherwise the hand ray stays the pointer. | Gaze never commits an edit by dwell alone; drags still use the hand. |
 
-All controls must be reachable with hand rays or direct interaction from a stationary seated position. Do not require actual walking around the furniture. A Settings/Help/Pause route must remain available without hunting behind the user.
+All controls must be reachable with hand rays, gaze-and-pinch or direct interaction from a stationary seated position. Do not require actual walking around the furniture. A Settings/Help/Pause route must remain available without hunting behind the user.
 
 ## D06. Reference scene and model constraints
 
@@ -174,8 +181,8 @@ Target duration: 2 minutes 30 seconds, leaving margin under the official three-m
 
 | Time | Footage | Message |
 | --- | --- | --- |
-| 0:00–0:15 | Spoken request, transcript and scene appearing. | Describe the situation you want to prepare for. |
-| 0:15–0:35 | Review of example dimensions and assumptions, then tabletop scene. | The environment is inspectable and editable. |
+| 0:00–0:15 | Passthrough: the tabletop snaps onto the user's real desk. | Your rehearsal sits in your own space. |
+| 0:15–0:35 | Spoken request, transcript and review card, then the scene builds on the desk. | Describe the situation; it is built in your space. |
 | 0:35–1:00 | Direct rehearsal stops at highlighted console. | Discover the modelled problem before acting. |
 | 1:00–1:25 | Judge-style hand movement parks console and reruns. | Your intervention changes the result. |
 | 1:25–1:50 | Alternative route and attempt comparison. | Explore options and see why outcomes differ. |
@@ -191,7 +198,7 @@ Each case needs a recorded outcome, commit, environment and evidence. `Not run` 
 | ID | Scenario / test | Required result |
 | --- | --- | --- |
 | AC01 | Clean first launch | Reach usable hand controls without registration/controller/laptop. |
-| AC02 | Supported voice request | Actual audio → deployed backend ASR → model-assisted intent → validated proposal → reviewed scene; model/deployment versions recorded. A template-only fallback cannot pass. |
+| AC02 | Supported voice request | Actual audio → on-device ASR → rule-based interpreter → validated proposal → reviewed scene, with no network; ASR model and interpreter versions recorded; interpreter labelled honestly. Device required. |
 | AC03 | Different supported room dimensions | Room bounds/labels reflect the request; persisted SceneSpec differs. |
 | AC04 | Missing dimensions | Clarification or explicit example choice; no invented measured provenance. |
 | AC05 | Mic denied, silent or cancelled | Clear recovery to hand creation; no stuck capture or infinite spinner. |
@@ -206,20 +213,23 @@ Each case needs a recorded outcome, commit, environment and evidence. `Not run` 
 | AC14 | Stale run after edit | Current result visibly invalidated; comparison still uses saved immutable scenes. |
 | AC15 | Save, kill/restart, reopen | Last committed state and saved runs recover, within documented storage semantics. |
 | AC16 | Corrupt/interrupted save | Backup/sample recovery works and does not erase unrelated projects. |
-| AC17 | Backend outage / offline | Primary voice creation reports unavailability; existing and hand-created template scenes retain edit/evaluation/replay/local save. No silent claim that AI generation completed. |
+| AC17 | Offline | With networking off, voice and hand creation, editing, evaluation, replay and local save all work; the release build makes no network call. |
 | AC18 | Late provider reply after cancel | It cannot replace the current scene or create a surprise save. |
 | AC19 | Unsupported request | Honest bounded response; no arbitrary assets, code or fabricated capability. |
 | AC20 | Tabletop rescale/recenter | Scene hash, dimensions and evaluator result unchanged. |
 | AC21 | Pause/resume/background | Microphone stops; playback pauses; return is stable. Device required. |
 | AC22 | Performance | Supported journey meets the official hardware frame-rate criterion; separate Quest evidence. |
-| AC23 | Deployed creation benchmark | Full ASR + proposal latency, exact model configuration, approved cost/quotas and actual-device operation verified; partial endpoint benchmarks do not pass. |
+| AC23 | On-device voice benchmark | End-of-recording to review latency, memory and frame-rate impact on Quest, with the exact ASR model; at least 18 of 20 supported quiet-room utterances give the right parameters after at most one confirmation. Device required. |
 | AC24 | Thirty-minute repeated use | No crash, unbounded resource growth or worsening rendering that breaks the gate. |
 | AC25 | Novice usability | Record uncoached completion and explanation comprehension; fix critical confusion. |
 | AC26 | Judge install/access | Correct channel invite opens playable APK for a separate tester. |
 | AC27 | Complete submission | Actual-footage video <3 min, form, team details and working build link. |
-| AC28 | Freeze/availability | Submitted client/service/catalog remain unchanged and accessible through judging. |
+| AC28 | Freeze/availability | Submitted client/catalog remain unchanged and accessible through judging. |
+| AC33 | Passthrough by default | App starts in passthrough on Quest; Settings toggles a virtual background and back; scene hash and results unchanged. Device required. |
+| AC34 | Surface placement | Tabletop lands on a detected table/desk in at least three rooms the developer did not set up; reposition works; no scene data or denied permission gives manual placement with an explanation. Device required. |
+| AC35 | Gaze selection | On an eye-tracking headset, look-and-pinch activates panel buttons and selects the console; without eye tracking the hand ray works unchanged; gaze alone commits nothing. Device required for eye tracking. |
 
-Additional backend acceptance cases, required for R0:
+Backend acceptance cases. **Revision 2.2: these apply to the optional development service and to R1; none is an R0 release gate.** On-device audio handling is covered by AC05, AC17 and AC23.
 
 | ID | Scenario / test | Required result |
 | --- | --- | --- |
@@ -232,15 +242,15 @@ Additional backend acceptance cases, required for R0:
 
 Productivity is the proposed track because the intended outcome is practical preparation. One track is sufficient. Hands-first completion is mandatory; seated stationary use and short sessions are design guidelines that this demo deliberately supports. A polished tabletop environment should not require large physical movement. Official judging weights innovation, experience, implementation and presentation equally. [SRC-01, SRC-02]
 
-Do not force every Meta feature into the demo. Passthrough, MRUK and anchors are useful only if the chosen presentation uses them meaningfully. The core geometry model can operate in a neutral virtual space when room data is unavailable. Actual physical room measurements are not obtained merely by putting an illustrative model on a real table.
+Passthrough is required in R0 (revision 2.2) because the judging criteria ask for purposeful passthrough and correct MRUK use. Its purpose here: the rehearsal sits on the user's real table at seated reach, found from scene data, so it fits their space without manual setup. The core geometry still runs in a neutral virtual space when room data is unavailable. Placing an illustrative model on a real table does not measure the real room, and the app must not suggest it does. Gaze (Interaction SDK v207) is also required, as a look-and-pinch alternative to hand rays.
 
-A voice-created scene plus generic advice is insufficient for our intended differentiation. The editable model, local evaluation, replay and evidence-based explanation are the entrant-built experience. Keep local rehearsal useful during a remote-model outage, but do not label the primary AI-creation feature complete when its required backend/model is absent. This is both a product resilience decision and a response to the competition's wrapper guidance. [SRC-01]
+A voice-created scene plus generic advice is insufficient for our intended differentiation. The editable model, local evaluation, replay and evidence-based explanation are the entrant-built experience. R0 has no server dependency at all, voice included, which also answers the competition's wrapper guidance: remove every third-party service and the whole project still works. [SRC-01]
 
 ## D11. Priorities, cuts and out-of-scope work
 
 ### Required before candidate release
 
-Deployed Python AI-creation API/worker with backend ASR and model-assisted interpretation; actual voice creation within supported bounds; hand-only alternative; truthful example provenance; one complete reference pack; exact evaluator; reliable hand editing; two route choices; replay/pause; attributed explanation; two-attempt comparison; local save/reopen; cancellation/recovery; APK/device validation and submission access.
+Passthrough by default with MRUK surface placement and a manual fallback; gaze-and-pinch selection with hand-ray fallback; on-device voice creation within supported bounds; hand-only alternative; truthful example provenance; one complete reference pack; exact evaluator; reliable hand editing; two route choices; replay/pause; attributed explanation; two-attempt comparison; local save/reopen; cancellation/recovery; APK/device validation and submission access.
 
 ### Optional only after required cases pass
 
@@ -250,7 +260,7 @@ More attractive mover animations, better sound design, a short guided tour, more
 
 Another demo pack, arbitrary film/robot/café generation, scans/PDFs, physics-based carrying and lifting, rotating the payload through a doorway, multiple floors, crowds, multiplayer, cloud accounts, commercial billing and foundation-model training. The broader Tryscape roadmap can include these; the submitted build must not advertise them as operational.
 
-If schedule slips, reduce art variety and presentation extras. If backend/model deployment or voice feasibility fails, the primary creation feature is blocked and needs an explicit scope decision; do not quietly record the preferred prompt and pretend the feature works. If core geometry is wrong, block release until corrected. Do not replace validation with a cinematic prerecorded sequence.
+If schedule slips, reduce art variety and presentation extras. If on-device voice cannot meet its device gate, record that and take an explicit owner decision; do not quietly record the preferred prompt and pretend the feature works. If core geometry is wrong, block release until corrected. Do not replace validation with a cinematic prerecorded sequence.
 
 ## D12. Ownership, handoff and change record
 
@@ -258,7 +268,7 @@ If schedule slips, reduce art variety and presentation extras. If backend/model 
 | --- | --- |
 | XR/application lead | Reproducible project, hand control, presentation root, APK pipeline. |
 | Core lead | Contracts, fixtures F01–F04, commands/evaluator, result evidence and persistence semantics. |
-| Voice/service lead | Required FastAPI/PostgreSQL baseline, deployed ASR/intent-model adapters, strict scene proposals, sessions, rate limits, retention, cancellation and end-to-end latency evidence. |
+| Voice/service lead | On-device ASR (whisper.cpp Android plugin) and the C# port of the rule-based interpreter; the optional FastAPI/PostgreSQL development service stays tested; hosting and a model-assisted interpreter are R1. |
 | Experience/QA lead | Onboarding, art/audio, acceptance case tracking, novice sessions and actual-footage submission. |
 
 Before changing demo theme, record the chosen audience, exact supported task, visible failure, allowed intervention, independently verifiable outcome, required assets and implementation estimate. Update technical evaluator capabilities only if the new task truly needs them. Keep product identity and voice-create/hand-operate interaction consistent.
@@ -266,6 +276,8 @@ Before changing demo theme, record the chosen audience, exact supported task, vi
 Initial change entry: 4 November 2026 — implementation package created; reference pack narrowed to fixed-orientation Moving Day, with explicit illustrative provenance and no claim of final scenario approval. The prior hotel scenario and newer cinematic candidates are not silently added to required scope.
 
 Revision 2.1 — 4 November 2026: primary creation now requires the Python backend and real model-assisted interpretation. Added AC29–AC32, cloud-processing disclosure and explicit offline fallback boundaries. Reference scene geometry is unchanged.
+
+Revision 2.2 — 6 November 2026 (owner decision after reading the official rules): the rules require an APK in the Competition channel and no hosted service. R0 ships without a server. Voice stays: speech recognition and the rule-based interpreter run on the headset (AC02 and AC23 rewritten); AC29–AC31 apply to the optional service and R1. Passthrough with MRUK surface placement (AC33, AC34) and gaze interaction (AC35) become R0 requirements. Reference scene geometry is unchanged.
 
 ## D13. Official references
 

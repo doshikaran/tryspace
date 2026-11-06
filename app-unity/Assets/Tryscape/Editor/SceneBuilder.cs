@@ -39,11 +39,17 @@ namespace Tryscape.Editor
             interactionRig.name = "OVRComprehensiveInteractionRig";
             WireInteractionRig(cameraRig, interactionRig);
 
+            // Virtual environment: shown only when passthrough is off (S11, AC33). In passthrough the real floor is visible.
+            var virtualEnvironment = new GameObject("Virtual Environment");
             var floor = GameObject.CreatePrimitive(PrimitiveType.Plane);
             floor.name = "Floor";
+            floor.transform.SetParent(virtualEnvironment.transform, false);
             floor.transform.localScale = new Vector3(2f, 1f, 2f);
 
-            ExperienceBuilder.Build();
+            var (passthroughLayer, centerEye) = ConfigurePassthrough(cameraRig);
+            AddMixedRealityUtilityKit();
+
+            ExperienceBuilder.Build(passthroughLayer, centerEye, virtualEnvironment);
 
             if (!AssetDatabase.IsValidFolder("Assets/Tryscape/Scenes"))
                 AssetDatabase.CreateFolder("Assets/Tryscape", "Scenes");
@@ -84,6 +90,47 @@ namespace Tryscape.Editor
             Debug.Log($"[Tryscape] Interaction rig references wired: {assigned}");
             if (assigned == 0)
                 throw new InvalidOperationException("No interaction rig references were wired; Meta SDK layout changed?");
+        }
+
+        /// <summary>
+        /// Passthrough underlay on the camera rig, a transparent camera clear, and Meta's startup permission requests off:
+        /// spatial data is asked for when placement starts and eye tracking only on headsets that have it (S11).
+        /// </summary>
+        static (OVRPassthroughLayer, Camera) ConfigurePassthrough(GameObject cameraRigGo)
+        {
+            var manager = cameraRigGo.GetComponent<OVRManager>() ?? throw new InvalidOperationException("OVRManager missing on camera rig");
+            manager.isInsightPassthroughEnabled = true;
+            var serialized = new SerializedObject(manager);
+            foreach (var field in new[]
+                     {
+                         "requestScenePermissionOnStartup", "requestEyeTrackingPermissionOnStartup", "requestBodyTrackingPermissionOnStartup",
+                         "requestFaceTrackingPermissionOnStartup", "requestRecordAudioPermissionOnStartup",
+                         "requestPassthroughCameraAccessPermissionOnStartup",
+                     })
+            {
+                var property = serialized.FindProperty(field);
+                if (property != null)
+                    property.boolValue = false;
+            }
+            serialized.ApplyModifiedPropertiesWithoutUndo();
+
+            var layer = cameraRigGo.AddComponent<OVRPassthroughLayer>(); // underlay by default
+            var centerEye = cameraRigGo.transform.Find("TrackingSpace/CenterEyeAnchor")?.GetComponent<Camera>()
+                            ?? throw new InvalidOperationException("CenterEyeAnchor camera missing");
+            centerEye.clearFlags = CameraClearFlags.SolidColor;
+            centerEye.backgroundColor = Color.clear;
+            return (layer, centerEye);
+        }
+
+        /// <summary>MR Utility Kit scene access; room data is loaded on demand by the app, never at startup.</summary>
+        static void AddMixedRealityUtilityKit()
+        {
+            var go = new GameObject("MRUK");
+            var mruk = go.AddComponent<Meta.XR.MRUtilityKit.MRUK>();
+            if (mruk.SceneSettings == null)
+                mruk.SceneSettings = new Meta.XR.MRUtilityKit.MRUK.MRUKSettings();
+            mruk.SceneSettings.DataSource = Meta.XR.MRUtilityKit.MRUK.SceneDataSource.Device;
+            mruk.SceneSettings.LoadSceneOnStartup = false;
         }
 
         static bool Assign(SerializedObject serialized, string field, UnityEngine.Object value, ref int assigned)

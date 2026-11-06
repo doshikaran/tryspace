@@ -11,7 +11,8 @@
         "Oculus.Interaction",
         "Oculus.Interaction.Editor",
         "UnityEngine.UI",
-        "Oculus.VR"
+        "Oculus.VR",
+        "meta.xr.mrutilitykit"
     ],
     "includePlatforms": [
         "Editor"
