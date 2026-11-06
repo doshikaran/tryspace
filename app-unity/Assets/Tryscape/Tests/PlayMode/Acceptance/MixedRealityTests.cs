@@ -262,6 +262,25 @@ namespace Tryscape.Tests.PlayMode.Acceptance
             Assert.IsFalse(_virtualRoom.activeSelf);
         }
 
+        /// <summary>The panel is placed from the real head pose (eye-level origin: head at y = 1.2 here), not fixed world coordinates.</summary>
+        [UnityTest]
+        public IEnumerator PanelIsPlacedInFrontOfTheHeadAfterStartAndOnResetView()
+        {
+            yield return BuildApp();
+            for (var i = 0; i < 12; i++)
+                yield return null;
+            var panel = _panel.transform;
+            AssertNear(new Vector3(-0.32f, 1.2f - 0.12f, 0.55f), panel.position, "front-left, just below eye level");
+            var toPanel = Vector3.ProjectOnPlane(panel.position - _camera.transform.position, Vector3.up).normalized;
+            Assert.That(Vector3.Dot(panel.forward, toPanel), Is.GreaterThan(0.999f), "turned to face the user");
+            Assert.That(Mathf.Abs(panel.forward.y), Is.LessThan(1e-4f), "kept upright, not tilted");
+
+            _camera.transform.SetPositionAndRotation(new Vector3(2f, 0.1f, -1f), Quaternion.Euler(0f, 180f, 0f)); // turned around, lower
+            _panel.Press("Settings");
+            _panel.Press("ResetView");
+            AssertNear(new Vector3(2f + 0.32f, 0.1f - 0.12f, -1f - 0.55f), panel.position, "follows the head on reset");
+        }
+
         [UnityTest]
         public IEnumerator GazeWithoutAnEyeGazeSourceIsReportedHonestlyAndHidden()
         {

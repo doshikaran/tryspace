@@ -187,8 +187,9 @@ namespace Tryscape.Editor
             canvas.renderMode = RenderMode.WorldSpace;
             var rect = canvasGo.GetComponent<RectTransform>();
             rect.sizeDelta = new Vector2(560, 900);
-            canvasGo.transform.position = new Vector3(-0.5f, 1.05f, 0.5f);
-            canvasGo.transform.rotation = Quaternion.Euler(0f, -35f, 0f);
+            // Initial pose for an eye-level origin (head at y = 0); the app re-places it relative to the real head at start.
+            canvasGo.transform.position = new Vector3(-0.32f, -0.12f, 0.55f);
+            canvasGo.transform.rotation = Quaternion.LookRotation(new Vector3(-0.32f, 0f, 0.55f).normalized, Vector3.up);
             canvasGo.transform.localScale = Vector3.one * 0.001f; // 1 px = 1 mm
 
             Image(canvasGo.transform, "Background", new Color(0.08f, 0.09f, 0.11f, 0.92f), stretch: true);

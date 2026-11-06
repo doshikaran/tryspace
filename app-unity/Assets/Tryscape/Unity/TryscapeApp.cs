@@ -256,6 +256,8 @@ namespace Tryscape.Unity
         {
             if (_playback != null)
                 _playback.Finished -= OnPlaybackFinished;
+            if (OVRManager.display != null)
+                OVRManager.display.RecenteredPose -= OnRecentered;
             if (_mixedReality != null)
                 _mixedReality.Changed -= Changed;
             if (_gaze != null)
@@ -296,6 +298,9 @@ namespace Tryscape.Unity
             _attempts.Changed += () => _attemptsVersion++;
             _onboardingVisible = !SafePrefs.GetBool(OnboardingKey);
             RefreshResumable();
+            StartCoroutine(PlaceViewOnceTracked());
+            if (OVRManager.display != null)
+                OVRManager.display.RecenteredPose += OnRecentered;
             if (_mixedReality != null)
             {
                 _mixedReality.Changed += Changed;
@@ -375,6 +380,7 @@ namespace Tryscape.Unity
                 return;
             _tabletop.SetYaw(0);
             _tabletop.SetZoomStep(2);
+            PlacePanelInFront();
             if (_mixedReality != null && _mixedReality.CurrentSurface != null)
             {
                 _mixedReality.ReapplySurface();
@@ -1454,6 +1460,34 @@ namespace Tryscape.Unity
         // ---- Lifecycle ----
 
         void ReleaseSpeechModel() => _speech?.Release();
+
+        /// <summary>
+        /// The head pose is valid only after the XR runtime delivers its first frames, so the panel (and the floating
+        /// tabletop, if no surface was found) are placed relative to the real head a few frames after start.
+        /// </summary>
+        System.Collections.IEnumerator PlaceViewOnceTracked()
+        {
+            for (var i = 0; i < 10; i++)
+                yield return null;
+            PlacePanelInFront();
+            if (_mixedReality == null || _mixedReality.CurrentSurface == null)
+                _tabletop?.Recenter();
+        }
+
+        void PlacePanelInFront()
+        {
+            var head = Camera.main != null ? Camera.main.transform : null;
+            if (_panel != null && head != null)
+                _panel.PlaceInFrontOf(head);
+        }
+
+        /// <summary>The user recentered (Meta button hold): bring the panel and a floating tabletop back in front.</summary>
+        void OnRecentered()
+        {
+            PlacePanelInFront();
+            if (_mixedReality == null || _mixedReality.CurrentSurface == null)
+                _tabletop?.Recenter();
+        }
 
         void OnApplicationPause(bool paused)
         {

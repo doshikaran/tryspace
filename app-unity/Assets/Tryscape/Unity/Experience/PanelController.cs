@@ -82,6 +82,29 @@ namespace Tryscape.Unity.Experience
             _buttons = new List<Button>(buttons);
         }
 
+        /// <summary>Panel position relative to the head: left, slightly below eye level, at arm's reach (seated use).</summary>
+        static readonly Vector3 HeadOffset = new Vector3(-0.32f, -0.12f, 0.55f);
+
+        /// <summary>
+        /// Places the panel in front of the user's current head pose, turned to face them. It is measured from the head,
+        /// never from fixed world coordinates, so it works with eye-level or floor-level tracking origins and whichever way
+        /// the user is facing when the app starts or recenters.
+        /// </summary>
+        public void PlaceInFrontOf(Transform head)
+        {
+            if (head == null)
+                return;
+            var forward = Vector3.ProjectOnPlane(head.forward, Vector3.up);
+            if (forward.sqrMagnitude < 1e-4f)
+                forward = Vector3.forward;
+            forward.Normalize();
+            var right = Vector3.Cross(Vector3.up, forward);
+            var position = head.position + right * HeadOffset.x + Vector3.up * HeadOffset.y + forward * HeadOffset.z;
+            var facing = Vector3.ProjectOnPlane(position - head.position, Vector3.up);
+            transform.SetPositionAndRotation(position,
+                Quaternion.LookRotation(facing.sqrMagnitude > 1e-4f ? facing.normalized : forward, Vector3.up));
+        }
+
         public void Bind(TryscapeApp app)
         {
             _app = app ?? throw new ArgumentNullException(nameof(app));

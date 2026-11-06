@@ -85,3 +85,6 @@ app-unity/Assets/StreamingAssets/asr/*.bin.meta
 app-unity/Assets/StreamingAssets/asr/*.tmp
 # Native plugin build trees (outputs are copied into Assets/Plugins by scripts/build_whisper_plugin.sh).
 native/whisper_shim/build/
+
+# Editor crash memory dumps (may contain sensitive memory; never commit)
+app-unity/mono_crash.*

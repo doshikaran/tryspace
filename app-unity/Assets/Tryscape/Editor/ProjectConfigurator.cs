@@ -30,6 +30,9 @@ namespace Tryscape.Editor
             "com.unity.openxr.feature.input.handtracking",
             "com.unity.openxr.feature.input.metahandtrackingaim",
             "com.unity.openxr.feature.input.oculustouch",
+            // Eye-tracked gaze (S11, AC35) and controller proximity; enabled by Meta project setup, pinned here.
+            "com.unity.openxr.feature.input.eyetracking",
+            "com.meta.openxr.feature.input.oculustouch.proximity",
         };
 
         static readonly string[] StandaloneFeatures =
